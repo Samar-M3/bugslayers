@@ -10,6 +10,8 @@ const Login = () => {
     userType: 'User',
     rememberMe: false
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -20,11 +22,38 @@ const Login = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login attempt:', formData);
-    // Simulate login
-    navigate('/dashboard');
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.username,
+          password: formData.password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        console.log('Login successful:', data);
+        navigate('/dashboard');
+      } else {
+        setError(data.message || 'Login failed. Please try again.');
+      }
+    } catch (err) {
+      setError('Connection error. Is the backend server running?');
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,6 +71,8 @@ const Login = () => {
 
         <div className="login-body">
           <h2>Welcome Back!</h2>
+
+          {error && <div className="error-message" style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '10px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', textAlign: 'center', border: '1px solid #fecaca' }}>{error}</div>}
           
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="input-group">
@@ -55,6 +86,7 @@ const Login = () => {
                 value={formData.username}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
             
@@ -69,10 +101,9 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
-
-
 
             <div className="form-options">
               <label className="remember-me">
@@ -81,6 +112,7 @@ const Login = () => {
                   name="rememberMe"
                   checked={formData.rememberMe}
                   onChange={handleChange}
+                  disabled={loading}
                 />
                 <span className="checkmark"></span>
                 Remember Me
@@ -90,8 +122,8 @@ const Login = () => {
               </Link>
             </div>
             
-            <button type="submit" className="login-button">
-              Login
+            <button type="submit" className="login-button" disabled={loading}>
+              {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
           

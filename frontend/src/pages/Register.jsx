@@ -10,6 +10,8 @@ const Register = () => {
     password: '',
     confirmPassword: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -20,14 +22,43 @@ const Register = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match!");
+      setError('Passwords do not match');
       return;
     }
-    console.log('Registration attempt:', formData);
-    navigate('/login');
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log('Registration successful:', data);
+        navigate('/login');
+      } else {
+        setError(data.message || 'Registration failed. Please try again.');
+      }
+    } catch (err) {
+      setError('Connection error. Is the backend server running?');
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,6 +76,8 @@ const Register = () => {
         <div className="register-body">
           <h2>Create Account</h2>
           
+          {error && <div className="error-message" style={{ color: '#ef4444', backgroundColor: '#fee2e2', padding: '10px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', textAlign: 'center', border: '1px solid #fecaca' }}>{error}</div>}
+
           <form className="register-form" onSubmit={handleSubmit}>
             <div className="input-group">
               <div className="input-icon">
@@ -57,6 +90,7 @@ const Register = () => {
                 value={formData.username}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -71,6 +105,7 @@ const Register = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
             
@@ -85,6 +120,7 @@ const Register = () => {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -99,11 +135,12 @@ const Register = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
-            
-            <button type="submit" className="register-button">
-              Register
+
+            <button type="submit" className="register-button" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Sign Up'}
             </button>
           </form>
           
