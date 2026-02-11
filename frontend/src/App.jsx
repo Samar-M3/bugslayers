@@ -6,12 +6,13 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import NotFound from './pages/NotFound';
 import './styles/global.css';
 
 const Layout = ({ children }) => {
   const location = useLocation();
-  const hideNavFooter = ['/login', '/register', '/dashboard'].includes(location.pathname);
+  const hideNavFooter = ['/login', '/register', '/dashboard', '/admin'].includes(location.pathname);
 
   return (
     <div className="app">
@@ -33,6 +34,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
