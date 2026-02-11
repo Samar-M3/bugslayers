@@ -109,25 +109,60 @@ exports.addParkingLot = async (req, res, next) => {
   try {
     const { name, lat, lon, pricePerHour, totalSpots, type } = req.body;
 
-    if (!name || !lat || !lon || !pricePerHour || !totalSpots) {
-      return res.status(400).json({ message: "All fields are required" });
+    // 1. Check for required fields
+    if (
+      !name ||
+      lat === undefined ||
+      lon === undefined ||
+      pricePerHour === undefined ||
+      totalSpots === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: name, lat, lon, pricePerHour, and totalSpots are mandatory.",
+      });
+    }
+
+    // 2. Validate numeric inputs
+    const numLat = Number(lat);
+    const numLon = Number(lon);
+    const numPrice = Number(pricePerHour);
+    const numSpots = Number(totalSpots);
+
+    if (isNaN(numLat) || isNaN(numLon) || isNaN(numPrice) || isNaN(numSpots)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid numeric input. lat, lon, pricePerHour, and totalSpots must be valid numbers.",
+      });
+    }
+
+    // 3. Validate type
+    const validTypes = ["car", "bike", "both"];
+    const finalType = type || "both";
+    if (!validTypes.includes(finalType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid type. Must be one of: car, bike, both.",
+      });
     }
 
     const newLot = await ParkingLot.create({
       name,
-      lat: Number(lat),
-      lon: Number(lon),
-      pricePerHour: Number(pricePerHour),
-      totalSpots: Number(totalSpots),
+      lat: numLat,
+      lon: numLon,
+      pricePerHour: numPrice,
+      totalSpots: numSpots,
       occupiedSpots: 0,
       status: "available",
-      type: type || "both",
+      type: finalType,
     });
 
     res.status(201).json(newLot);
   } catch (error) {
     console.error("Add Lot Error:", error);
-    next(error); // Pass to error handler
+    next(error);
   }
 };
 

@@ -118,7 +118,14 @@ const AdminDashboard = () => {
         body: JSON.stringify(lotData)
       });
       
-      const data = await res.json();
+      let data;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { message: text || res.statusText };
+      }
       
       if (res.ok) {
         setIsAddingLot(false);
@@ -129,7 +136,7 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       console.error('Error adding lot:', err);
-      alert('Network error while adding parking lot');
+      alert(`Network error while adding parking lot: ${err.message}`);
     }
   };
 
@@ -165,7 +172,14 @@ const AdminDashboard = () => {
         body: JSON.stringify(lotData)
       });
       
-      const data = await res.json();
+      let data;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { message: text || res.statusText };
+      }
       
       if (res.ok) {
         setIsEditingLot(false);
@@ -176,7 +190,7 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       console.error('Error updating lot:', err);
-      alert('Network error while updating parking lot');
+      alert(`Network error while updating parking lot: ${err.message}`);
     }
   };
 
