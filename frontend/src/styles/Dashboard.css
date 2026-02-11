@@ -10,6 +10,7 @@
 
 .dashboard-container {
   height: 100vh;
+  width: 100vw;
   background-color: var(--bg-dark);
   color: var(--text-primary);
   font-family:
@@ -17,6 +18,7 @@
     sans-serif;
   overflow: hidden;
   position: relative;
+  overscroll-behavior: none;
 }
 
 /* Header - Overlaid on Map */
@@ -25,20 +27,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
   background: linear-gradient(
     to bottom,
-    rgba(15, 23, 42, 0.9),
-    rgba(15, 23, 42, 0.5) 70%,
-    transparent
+    rgba(15, 23, 42, 0.95) 0%,
+    rgba(15, 23, 42, 0.8) 50%,
+    transparent 100%
   );
-  z-index: 110;
+  z-index: 1100; /* Higher than sheet handle but below nav */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  pointer-events: auto; /* Ensure it catches touches */
 }
 
 .profile-pic img {
@@ -468,33 +471,6 @@
   transition: transform 0.4s ease;
 }
 
-.recenter-btn-floating {
-  position: absolute;
-  bottom: 160px; /* Above the collapsed bottom sheet */
-  right: 20px;
-  z-index: 100;
-  background: white;
-  border: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-  color: #6366f1;
-  transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.recenter-btn-floating:active {
-  background: #f8fafc;
-}
-
-.discovery-section.expanded ~ .recenter-btn-floating {
-  bottom: 87vh; /* Move up when sheet is expanded */
-}
-
 .session-header {
   display: flex;
   align-items: center;
@@ -551,150 +527,6 @@
   transform: scale(0.95);
 }
 
-/* Discovery Section */
-.discovery-section {
-  padding: 0 20px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.section-header h3 {
-  font-size: 18px;
-  margin: 0;
-}
-
-.view-all {
-  background: none;
-  border: none;
-  color: var(--accent-blue);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.horizontal-scroll {
-  display: flex;
-  gap: 15px;
-  overflow-x: auto;
-  padding-bottom: 10px;
-  scrollbar-width: none;
-}
-
-.horizontal-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.parking-lot-card {
-  min-width: 260px;
-  background: var(--bg-card);
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.lot-image {
-  height: 120px;
-  position: relative;
-}
-
-.lot-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.status-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 10px;
-  font-weight: bold;
-}
-
-.status-badge.available {
-  background: rgba(16, 185, 129, 0.2);
-  color: var(--success);
-  backdrop-filter: blur(4px);
-}
-
-.status-badge.full {
-  background: rgba(239, 68, 68, 0.2);
-  color: var(--danger);
-  backdrop-filter: blur(4px);
-}
-
-.lot-content {
-  padding: 15px;
-}
-
-.lot-content h4 {
-  margin: 0 0 5px 0;
-  font-size: 16px;
-}
-
-.lot-meta {
-  display: flex;
-  gap: 10px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-bottom: 12px;
-}
-
-.lot-meta span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.occupancy-container {
-  margin-bottom: 15px;
-}
-
-.occupancy-bar {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  margin-bottom: 6px;
-  overflow: hidden;
-}
-
-.occupancy-fill {
-  height: 100%;
-  background: var(--accent-blue);
-  border-radius: 3px;
-}
-
-.occupancy-text {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.book-btn {
-  width: 100%;
-  padding: 10px;
-  border-radius: 12px;
-  border: none;
-  font-weight: 600;
-  font-size: 14px;
-  transition: all 0.3s;
-}
-
-.book-btn.available {
-  background: var(--accent-blue);
-  color: white;
-}
-
-.book-btn.full {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-}
-
 /* Bottom Navigation Bar */
 .bottom-nav {
   position: fixed;
@@ -709,7 +541,7 @@
   justify-content: space-around;
   align-items: center;
   padding: 0 10px;
-  z-index: 1200; /* Higher than bottom sheet */
+  z-index: 2000; /* Highest priority */
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding-bottom: env(safe-area-inset-bottom);
 }
