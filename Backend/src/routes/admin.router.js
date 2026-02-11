@@ -7,6 +7,7 @@ const {
   addParkingLot,
   deleteParkingLot,
   updateParkingLot,
+  aiDetectParking,
 } = require("../controller/admin.controller");
 const { isauthenticated, Isadmin } = require("../middleware/auth");
 
@@ -25,5 +26,6 @@ router.get("/lots", getAllLots);
 router.post("/lots", addParkingLot);
 router.delete("/lots/:id", deleteParkingLot);
 router.put("/lots/:id", updateParkingLot);
+router.post("/ai-detect", aiDetectParking);
 
 module.exports = router;

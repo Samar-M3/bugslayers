@@ -34,6 +34,68 @@ exports.getDashboardStats = async (req, res, next) => {
   }
 };
 
+exports.aiDetectParking = async (req, res, next) => {
+  try {
+    // Simulate AI processing delay
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Simulated AI detection results (popular areas in Kathmandu that might have public parking)
+    const detectedLots = [
+      {
+        name: "AI Detected: Kalimati Market Area",
+        lat: 27.6981,
+        lon: 85.2974,
+        pricePerHour: 30,
+        totalSpots: 40,
+        type: "both",
+      },
+      {
+        name: "AI Detected: New Road Gate",
+        lat: 27.7042,
+        lon: 85.3117,
+        pricePerHour: 50,
+        totalSpots: 25,
+        type: "bike",
+      },
+      {
+        name: "AI Detected: Pashupatinath Area",
+        lat: 27.7104,
+        lon: 85.3487,
+        pricePerHour: 40,
+        totalSpots: 100,
+        type: "both",
+      },
+    ];
+
+    const addedLots = [];
+    for (const lot of detectedLots) {
+      // Only add if not already present
+      const existing = await ParkingLot.findOne({
+        lat: { $gt: lot.lat - 0.001, $lt: lot.lat + 0.001 },
+        lon: { $gt: lot.lon - 0.001, $lt: lot.lon + 0.001 },
+      });
+
+      if (!existing) {
+        const newLot = await ParkingLot.create({
+          ...lot,
+          occupiedSpots: Math.floor(Math.random() * lot.totalSpots),
+          status: "available",
+        });
+        addedLots.push(newLot);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `AI Scan complete. Detected ${detectedLots.length} locations, added ${addedLots.length} new parking lots.`,
+      data: addedLots,
+    });
+  } catch (error) {
+    console.error("AI Detection Error:", error);
+    next(error);
+  }
+};
+
 exports.getRevenueTrends = async (req, res, next) => {
   try {
     // Get revenue for the last 24 hours, grouped by hour

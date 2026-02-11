@@ -18,7 +18,9 @@ import {
   X,
   LogOut,
   ChevronRight,
-  Users
+  Users,
+  Zap,
+  Cpu
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -157,6 +159,32 @@ const AdminDashboard = () => {
     type: 'both'
   });
   const [markerPosition, setMarkerPosition] = useState(null);
+  const [isAiScanning, setIsAiScanning] = useState(false);
+
+  const handleAiDetect = async () => {
+    setIsAiScanning(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/ai-detect', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchLots();
+        fetchStats();
+      }
+    } catch (err) {
+      console.error('AI Detection Error:', err);
+      alert('AI Scan failed. Please check backend logs.');
+    } finally {
+      setIsAiScanning(false);
+    }
+  };
 
   useEffect(() => {
     if (markerPosition) {
@@ -447,9 +475,47 @@ const AdminDashboard = () => {
           </div>
           <div className="header-actions">
             {activeTab === 'manage-lots' && (
-              <button className="add-lot-btn" onClick={() => setIsAddingLot(true)} style={{ background: '#6366f1', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Plus size={20} /> Add New Lot
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  className="ai-detect-btn" 
+                  onClick={handleAiDetect} 
+                  disabled={isAiScanning}
+                  style={{ 
+                    background: '#10b981', 
+                    color: 'white', 
+                    padding: '10px 20px', 
+                    borderRadius: '8px', 
+                    border: 'none', 
+                    cursor: isAiScanning ? 'not-allowed' : 'pointer', 
+                    fontWeight: '600', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    opacity: isAiScanning ? 0.7 : 1
+                  }}
+                >
+                  <Cpu size={20} className={isAiScanning ? 'animate-pulse' : ''} /> 
+                  {isAiScanning ? 'AI Scanning...' : 'AI Detect Public Parking'}
+                </button>
+                <button 
+                  className="add-lot-btn" 
+                  onClick={() => setIsAddingLot(true)} 
+                  style={{ 
+                    background: '#6366f1', 
+                    color: 'white', 
+                    padding: '10px 20px', 
+                    borderRadius: '8px', 
+                    border: 'none', 
+                    cursor: 'pointer', 
+                    fontWeight: '600', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px' 
+                  }}
+                >
+                  <Plus size={20} /> Add New Lot
+                </button>
+              </div>
             )}
             <button className="notif-btn">
               <Bell size={24} />
