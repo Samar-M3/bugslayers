@@ -72,6 +72,7 @@ const Dashboard = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [trackingEnabled, setTrackingEnabled] = useState(false);
   const [mapCenter, setMapCenter] = useState([27.7172, 85.3240]); // Default to Kathmandu
+  const [activeCategory, setActiveCategory] = useState('car');
 
   // --- Logic: Search Location (OpenStreetMap Nominatim API) ---
   const handleSearch = async (e) => {
@@ -82,6 +83,7 @@ const Dashboard = () => {
         if (data && data.length > 0) {
           const { lat, lon } = data[0];
           setMapCenter([parseFloat(lat), parseFloat(lon)]);
+          setTrackingEnabled(true); // Show the map if a location is found
         } else {
           alert('Location not found in Nepal. Please try again.');
         }
@@ -175,9 +177,18 @@ const Dashboard = () => {
 
       {/* Category Tabs */}
       <div className="category-tabs">
-        <button className="tab active"><Car size={16} /> Car</button>
-        <button className="tab"><Bike size={16} /> Bike</button>
-        <button className="tab"><Zap size={16} /> EV Only</button>
+        <button 
+          className={`tab ${activeCategory === 'car' ? 'active' : ''}`} 
+          onClick={() => setActiveCategory('car')}
+        >
+          <Car size={16} /> Car
+        </button>
+        <button 
+          className={`tab ${activeCategory === 'bike' ? 'active' : ''}`} 
+          onClick={() => setActiveCategory('bike')}
+        >
+          <Bike size={16} /> Bike
+        </button>
       </div>
 
       {/* Map Section */}
@@ -196,7 +207,7 @@ const Dashboard = () => {
         ) : (
           <div className="map-wrapper" style={{ height: '300px', width: '100%', borderRadius: '24px', overflow: 'hidden' }}>
             <MapContainer 
-              center={userLocation || [27.7172, 85.3240]} 
+              center={mapCenter} 
               zoom={15} 
               style={{ height: '100%', width: '100%' }}
               zoomControl={false}
@@ -206,13 +217,12 @@ const Dashboard = () => {
                 attribution='&copy; OpenStreetMap contributors'
               />
               
+              <RecenterMap position={mapCenter} />
+
               {userLocation && (
-                <>
-                  <Marker position={userLocation} icon={userIcon}>
-                    <Popup>You are here (Live)</Popup>
-                  </Marker>
-                  <RecenterMap position={userLocation} />
-                </>
+                <Marker position={userLocation} icon={userIcon}>
+                  <Popup>You are here (Live)</Popup>
+                </Marker>
               )}
 
               {parkingLots.map(lot => (
@@ -225,7 +235,11 @@ const Dashboard = () => {
                 </Marker>
               ))}
               
-              <button className="recenter-btn-floating" onClick={() => userLocation && setUserLocation([...userLocation])}>
+              <button 
+                className="recenter-btn-floating" 
+                onClick={() => userLocation && setMapCenter([...userLocation])}
+                style={{ cursor: 'pointer' }}
+              >
                 <Navigation size={20} />
               </button>
             </MapContainer>
