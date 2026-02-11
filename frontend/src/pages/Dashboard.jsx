@@ -77,30 +77,36 @@ const Dashboard = () => {
   const [isSheetExpanded, setIsSheetExpanded] = useState(false);
 
   // --- Logic: Fetch Data from Backend ---
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch Parking Lots
-        const lotsRes = await fetch('http://localhost:8000/api/v1/parking/lots');
-        const lotsData = await lotsRes.json();
-        if (lotsData.success) setParkingLots(lotsData.data);
-
-        // Fetch Active Session (Requires Auth Token)
-        const token = localStorage.getItem('token');
-        if (token) {
-          const sessionRes = await fetch('http://localhost:8000/api/v1/parking/active-session', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const sessionData = await sessionRes.json();
-          if (sessionData.success && sessionData.data) {
-            setActiveSession(sessionData.data);
-            setIsParked(true);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+  const fetchData = async (lat, lon) => {
+    try {
+      // Fetch Parking Lots with location if available
+      let url = 'http://localhost:8000/api/v1/parking/lots';
+      if (lat && lon) {
+        url += `?lat=${lat}&lon=${lon}`;
       }
-    };
+      
+      const lotsRes = await fetch(url);
+      const lotsData = await lotsRes.json();
+      if (lotsData.success) setParkingLots(lotsData.data);
+
+      // Fetch Active Session (Requires Auth Token)
+      const token = localStorage.getItem('token');
+      if (token) {
+        const sessionRes = await fetch('http://localhost:8000/api/v1/parking/active-session', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const sessionData = await sessionRes.json();
+        if (sessionData.success && sessionData.data) {
+          setActiveSession(sessionData.data);
+          setIsParked(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
    }, []);
 
@@ -112,8 +118,13 @@ const Dashboard = () => {
         const data = await response.json();
         if (data && data.length > 0) {
           const { lat, lon } = data[0];
-          setMapCenter([parseFloat(lat), parseFloat(lon)]);
+          const newLat = parseFloat(lat);
+          const newLon = parseFloat(lon);
+          setMapCenter([newLat, newLon]);
           setTrackingEnabled(true); // Show the map if a location is found
+          
+          // Fetch nearby lots for the searched location
+          fetchData(newLat, newLon);
         } else {
           alert('Location not found in Nepal. Please try again.');
         }
@@ -133,6 +144,10 @@ const Dashboard = () => {
           const { latitude, longitude } = position.coords;
           setUserLocation([latitude, longitude]);
           console.log("Updated location:", latitude, longitude);
+          
+          // Only fetch nearby lots based on real location if map center hasn't been moved manually
+          // Or just update nearby lots whenever location changes significantly
+          fetchData(latitude, longitude);
         },
         (error) => {
           console.error("Error tracking location:", error);
@@ -322,7 +337,7 @@ const Dashboard = () => {
               <div className="lot-content">
                 <h4>{lot.name}</h4>
                 <div className="lot-meta">
-                  <span><Navigation size={12} /> {lot.distance || 'Nearby'}</span>
+                  <span><Navigation size={12} /> {lot.distance ? `${lot.distance.toFixed(2)} km` : 'Nearby'}</span>
                   <span>• NPR {lot.pricePerHour}/hr</span>
                 </div>
                 <div className="occupancy-container">

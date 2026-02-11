@@ -106,6 +106,7 @@ exports.getAllLots = async (req, res, next) => {
 };
 
 exports.addParkingLot = async (req, res, next) => {
+  console.log("Add Parking Lot Request Body:", req.body);
   try {
     const { name, lat, lon, pricePerHour, totalSpots, type } = req.body;
 
@@ -159,7 +160,10 @@ exports.addParkingLot = async (req, res, next) => {
       type: finalType,
     });
 
-    res.status(201).json(newLot);
+    res.status(201).json({
+      success: true,
+      data: newLot,
+    });
   } catch (error) {
     console.error("Add Lot Error:", error);
     next(error);
