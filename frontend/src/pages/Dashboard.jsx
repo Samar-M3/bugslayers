@@ -64,8 +64,9 @@ const RecenterMap = ({ position }) => {
 
 const Dashboard = () => {
   // --- State Management ---
-  const [isParked, setIsParked] = useState(true);
-  const [startTime] = useState(new Date(Date.now() - 45 * 60 * 1000 - 12 * 1000));
+  const [isParked, setIsParked] = useState(false);
+  const [activeSession, setActiveSession] = useState(null);
+  const [parkingLots, setParkingLots] = useState([]);
   const [timer, setTimer] = useState('00:00:00');
   const [currentBill, setCurrentBill] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,6 +74,35 @@ const Dashboard = () => {
   const [trackingEnabled, setTrackingEnabled] = useState(false);
   const [mapCenter, setMapCenter] = useState([27.7172, 85.3240]); // Default to Kathmandu
   const [activeCategory, setActiveCategory] = useState('car');
+  const [isSheetExpanded, setIsSheetExpanded] = useState(false);
+
+  // --- Logic: Fetch Data from Backend ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch Parking Lots
+        const lotsRes = await fetch('http://localhost:8000/api/v1/parking/lots');
+        const lotsData = await lotsRes.json();
+        if (lotsData.success) setParkingLots(lotsData.data);
+
+        // Fetch Active Session (Requires Auth Token)
+        const token = localStorage.getItem('token');
+        if (token) {
+          const sessionRes = await fetch('http://localhost:8000/api/v1/parking/active-session', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const sessionData = await sessionRes.json();
+          if (sessionData.success && sessionData.data) {
+            setActiveSession(sessionData.data);
+            setIsParked(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+    fetchData();
+   }, []);
 
   // --- Logic: Search Location (OpenStreetMap Nominatim API) ---
   const handleSearch = async (e) => {
@@ -92,13 +122,6 @@ const Dashboard = () => {
       }
     }
   };
-
-  // --- Mock Data ---
-  const parkingLots = [
-    { id: 1, name: 'New Road P1', distance: '200m', price: 25, occupancy: '45/50', status: 'available', lat: 27.7042, lon: 85.3101 },
-    { id: 2, name: 'Dharahara Complex', distance: '450m', price: 40, occupancy: '50/50', status: 'full', lat: 27.7005, lon: 85.3121 },
-    { id: 3, name: 'Basantapur Square', distance: '800m', price: 30, occupancy: '12/40', status: 'available', lat: 27.7040, lon: 85.3065 },
-  ];
 
   // --- Logic: Live Geolocation Tracking ---
   useEffect(() => {
@@ -134,11 +157,11 @@ const Dashboard = () => {
 
   // --- Logic: Live Parking Timer & Fee ---
   useEffect(() => {
-    if (!isParked) return;
+    if (!isParked || !activeSession) return;
 
     const interval = setInterval(() => {
       const now = new Date();
-      const diffInMs = now - new Date(startTime);
+      const diffInMs = now - new Date(activeSession.startTime);
       
       const hours = Math.floor(diffInMs / (1000 * 60 * 60)).toString().padStart(2, '0');
       const minutes = Math.floor((diffInMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
@@ -146,52 +169,15 @@ const Dashboard = () => {
       setTimer(`${hours}:${minutes}:${seconds}`);
 
       const diffInHours = diffInMs / (1000 * 60 * 60);
-      setCurrentBill(Math.ceil(diffInHours * 25));
+      setCurrentBill(Math.ceil(diffInHours * (activeSession.parkingLot?.pricePerHour || 25)));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isParked, startTime]);
+  }, [isParked, activeSession]);
 
   return (
     <div className="dashboard-container">
-      {/* Header */}
-      <header className="dashboard-header">
-        <div className="profile-pic">
-          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
-        </div>
-        <div className="search-bar-container">
-          <Search size={18} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search location in Nepal..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleSearch}
-          />
-        </div>
-        <button className="notification-btn">
-          <Bell size={22} />
-          <span className="notification-badge"></span>
-        </button>
-      </header>
-
-      {/* Category Tabs */}
-      <div className="category-tabs">
-        <button 
-          className={`tab ${activeCategory === 'car' ? 'active' : ''}`} 
-          onClick={() => setActiveCategory('car')}
-        >
-          <Car size={16} /> Car
-        </button>
-        <button 
-          className={`tab ${activeCategory === 'bike' ? 'active' : ''}`} 
-          onClick={() => setActiveCategory('bike')}
-        >
-          <Bike size={16} /> Bike
-        </button>
-      </div>
-
-      {/* Map Section */}
+      {/* Map Section - Background */}
       <div className="map-section">
         {!trackingEnabled ? (
           <div className="map-placeholder request-location">
@@ -205,7 +191,7 @@ const Dashboard = () => {
             </div>
           </div>
         ) : (
-          <div className="map-wrapper" style={{ height: '300px', width: '100%', borderRadius: '24px', overflow: 'hidden' }}>
+          <div className="map-wrapper">
             <MapContainer 
               center={mapCenter} 
               zoom={15} 
@@ -226,10 +212,10 @@ const Dashboard = () => {
               )}
 
               {parkingLots.map(lot => (
-                <Marker key={lot.id} position={[lot.lat, lot.lon]} icon={parkingIcon}>
+                <Marker key={lot._id} position={[lot.lat, lot.lon]} icon={parkingIcon}>
                   <Popup>
                     <strong>{lot.name}</strong><br />
-                    Price: NPR {lot.price}/hr<br />
+                    Price: NPR {lot.pricePerHour}/hr<br />
                     Status: {lot.status}
                   </Popup>
                 </Marker>
@@ -247,7 +233,44 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Active Session Card */}
+      {/* Overlaid Header */}
+      <header className="dashboard-header">
+        <div className="profile-pic">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+        </div>
+        <div className="search-bar-container">
+          <Search size={18} className="search-icon" />
+          <input 
+            type="text" 
+            placeholder="Search location in Nepal..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearch}
+          />
+        </div>
+        <button className="notification-btn">
+          <Bell size={22} />
+          <span className="notification-badge"></span>
+        </button>
+      </header>
+
+      {/* Overlaid Category Tabs */}
+      <div className="category-tabs">
+        <button 
+          className={`tab ${activeCategory === 'car' ? 'active' : ''}`} 
+          onClick={() => setActiveCategory('car')}
+        >
+          <Car size={16} /> Car
+        </button>
+        <button 
+          className={`tab ${activeCategory === 'bike' ? 'active' : ''}`} 
+          onClick={() => setActiveCategory('bike')}
+        >
+          <Bike size={16} /> Bike
+        </button>
+      </div>
+
+      {/* Overlaid Active Session Card */}
       {isParked && (
         <div className="active-session-card">
           <div className="session-info">
@@ -262,7 +285,7 @@ const Dashboard = () => {
               </div>
               <div className="detail-item">
                 <MapPin size={16} />
-                <span>New Road P1</span>
+                <span>{activeSession.parkingLot?.name || 'Active Spot'}</span>
               </div>
               <div className="detail-item bill">
                 <Wallet size={16} />
@@ -276,15 +299,19 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Discovery Section */}
-      <section className="discovery-section">
-        <div className="section-header">
-          <h3>Nearby Parking</h3>
-          <button className="view-all">View All</button>
+      {/* Slidable Bottom Sheet (Discovery Section) */}
+      <section className={`discovery-section ${isSheetExpanded ? 'expanded' : 'collapsed'}`}>
+        <div className="sheet-handle-container" onClick={() => setIsSheetExpanded(!isSheetExpanded)}>
+          <div className="sheet-handle"></div>
+          <div className="section-header">
+            <h3>Nearby Parking</h3>
+            <button className="view-all">View All</button>
+          </div>
         </div>
+
         <div className="horizontal-scroll">
           {parkingLots.map(lot => (
-            <div key={lot.id} className="parking-lot-card">
+            <div key={lot._id} className="parking-lot-card">
               <div className="lot-image">
                 <img src={`https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80&w=200`} alt={lot.name} />
                 <span className={`status-badge ${lot.status}`}>{lot.status.toUpperCase()}</span>
@@ -292,17 +319,17 @@ const Dashboard = () => {
               <div className="lot-content">
                 <h4>{lot.name}</h4>
                 <div className="lot-meta">
-                  <span><Navigation size={12} /> {lot.distance}</span>
-                  <span>• NPR {lot.price}/hr</span>
+                  <span><Navigation size={12} /> {lot.distance || 'Nearby'}</span>
+                  <span>• NPR {lot.pricePerHour}/hr</span>
                 </div>
                 <div className="occupancy-container">
                   <div className="occupancy-bar">
                     <div 
-                      className="occupancy-fill" 
-                      style={{ width: `${(parseInt(lot.occupancy.split('/')[0]) / parseInt(lot.occupancy.split('/')[1])) * 100}%` }}
+                      className="occupancy-fill"
+                      style={{ width: `${(lot.occupiedSpots / lot.totalSpots) * 100}%` }}
                     ></div>
                   </div>
-                  <span className="occupancy-text">{lot.occupancy} slots</span>
+                  <span className="occupancy-text">{lot.occupiedSpots}/{lot.totalSpots} slots</span>
                 </div>
                 <button className={`book-btn ${lot.status}`} disabled={lot.status === 'full'}>
                   {lot.status === 'full' ? 'Sold Out' : 'Book Now'}
