@@ -37,12 +37,10 @@ exports.startSession = async (req, res) => {
     });
 
     if (existingSession) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "User already has an active session",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "User already has an active session",
+      });
     }
 
     const session = await ParkingSession.create({
@@ -57,6 +55,44 @@ exports.startSession = async (req, res) => {
     });
 
     res.status(201).json({ success: true, data: session });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Complete a parking session (Ends session and calculates revenue)
+exports.completeSession = async (req, res) => {
+  try {
+    const session = await ParkingSession.findOne({
+      user: req.user._id,
+      status: "active",
+    }).populate("parkingLot");
+
+    if (!session) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No active session found" });
+    }
+
+    const endTime = new Date();
+    const startTime = new Date(session.startTime);
+    const durationHours = Math.max(
+      1,
+      Math.ceil((endTime - startTime) / (1000 * 60 * 60)),
+    );
+    const totalAmount = durationHours * session.parkingLot.pricePerHour;
+
+    session.endTime = endTime;
+    session.totalAmount = totalAmount;
+    session.status = "completed";
+    await session.save();
+
+    // Decrement occupied spots
+    await ParkingLot.findByIdAndUpdate(session.parkingLot._id, {
+      $inc: { occupiedSpots: -1 },
+    });
+
+    res.status(200).json({ success: true, data: session });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
