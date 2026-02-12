@@ -2,6 +2,7 @@ const ParkingSession = require("../models/ParkingSession.model");
 const ParkingLot = require("../models/ParkingLot.model");
 const User = require("../models/User.model");
 const SystemConfig = require("../models/SystemConfig.model");
+const bcrypt = require("bcrypt");
 
 exports.getDashboardStats = async (req, res, next) => {
   try {
@@ -495,6 +496,73 @@ exports.deleteUser = async (req, res, next) => {
       return res.status(404).json({ message: "User not found" });
     }
     res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Superadmin: create guard credentials
+exports.createGuardAccount = async (req, res, next) => {
+  try {
+    const { firstName, lastName, username, email, password } = req.body;
+
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "firstName, lastName, email and password are required",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long",
+      });
+    }
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "User with this email already exists",
+      });
+    }
+
+    const finalUsername =
+      username ||
+      `${firstName.toLowerCase()}_${lastName.toLowerCase()}_${Math.floor(Math.random() * 1000)}`;
+
+    const existingUsername = await User.findOne({ username: finalUsername });
+    if (existingUsername) {
+      return res.status(400).json({
+        success: false,
+        message: "Username already exists. Please provide another username.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const guardUser = await User.create({
+      firstName,
+      lastName,
+      username: finalUsername,
+      email,
+      password: hashedPassword,
+      role: "guard",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Guard account created successfully",
+      data: {
+        _id: guardUser._id,
+        firstName: guardUser.firstName,
+        lastName: guardUser.lastName,
+        username: guardUser.username,
+        email: guardUser.email,
+        role: guardUser.role,
+      },
+    });
   } catch (error) {
     next(error);
   }

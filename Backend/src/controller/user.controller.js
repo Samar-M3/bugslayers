@@ -49,8 +49,8 @@ const signupSchema = Joi.object({
     "string.empty": "Password is required",
   }),
 
-  role: Joi.string().valid("driver", "superadmin").default("driver").messages({
-    "any.only": "Role must be either 'user' or 'admin'",
+  role: Joi.string().valid("driver").default("driver").messages({
+    "any.only": "Role must be driver",
   }),
 });
 
@@ -181,7 +181,7 @@ const signup = async (req, res) => {
       `${value.firstName.toLowerCase()}_${value.lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
 
     // Create user
-    const user = await User.create({ ...value, username, password: hash });
+    const user = await User.create({ ...value, username, role: "driver", password: hash });
 
     // Create token payload (without password)
     const userObject = user.toObject();

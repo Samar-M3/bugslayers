@@ -9,7 +9,7 @@ const {
   guardEntry,
   guardExit,
 } = require("../controller/parking.controller");
-const { isauthenticated, Isadmin } = require("../middleware/auth");
+const { isauthenticated, IsGuardOrAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -21,7 +21,7 @@ router.get("/bookings", isauthenticated, getUserBookings);
 router.post("/complete-session", isauthenticated, completeSession);
 
 // Guard routes
-router.post("/guard/entry", isauthenticated, Isadmin, guardEntry);
-router.post("/guard/exit", isauthenticated, Isadmin, guardExit);
+router.post("/guard/entry", isauthenticated, IsGuardOrAdmin, guardEntry);
+router.post("/guard/exit", isauthenticated, IsGuardOrAdmin, guardExit);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const User=require("../models/User.model")
+const User = require("../models/User.model");
 
 /**
  * Authentication Middleware
@@ -8,29 +8,29 @@ const User=require("../models/User.model")
 const isauthenticated = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     // Check if Bearer token is provided
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
         success: false,
-        message: "No token provided" 
+        message: "No token provided",
       });
     }
 
     const token = authHeader.split(" ")[1];
-    
+
     // Verify JWT using the secret key
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
+
     // Support both '_id' (standard Mongo) and 'id' in token payload
     const userId = decoded._id || decoded.id;
-    
+
     const foundUser = await User.findById(userId);
-    
+
     if (!foundUser) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "User not found" 
+        message: "User not found",
       });
     }
 
@@ -38,29 +38,28 @@ const isauthenticated = async (req, res, next) => {
     req.user = foundUser;
     req.userId = foundUser._id;
     next();
-    
   } catch (err) {
-    console.error('Auth Error:', err.message);
-    
+    console.error("Auth Error:", err.message);
+
     // Handle specific JWT error cases
-    if (err.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
+    if (err.name === "JsonWebTokenError") {
+      return res.status(401).json({
         success: false,
-        message: "Invalid token" 
+        message: "Invalid token",
       });
     }
-    
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
+
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({
         success: false,
-        message: "Token expired" 
+        message: "Token expired",
       });
     }
-    
-    res.status(401).json({ 
+
+    res.status(401).json({
       success: false,
       message: "Authentication failed",
-      error: err.message 
+      error: err.message,
     });
   }
 };
@@ -70,41 +69,41 @@ const isauthenticated = async (req, res, next) => {
  * Restricts access to superadmin users only.
  */
 const Isadmin = (req, res, next) => {
-    const user = req.user;
-    if (user.role === "superadmin") {
-        next();
-    } else {
-        res.status(403).send({ message: "Forbidden: Admin access required" });
-    }
+  const user = req.user;
+  if (user.role === "superadmin") {
+    next();
+  } else {
+    res.status(403).send({ message: "Forbidden: Admin access required" });
+  }
 };
 
 /**
- * Authorization Middleware: Buyer
+ * Authorization Middleware: Guard
  */
-const Isbuyer = (req, res, next) => {
-     const user = req.user;
-    if (user.role === "buyer") {
-        next();
-    } else {
-        res.status(403).send({ message: "Forbidden: Buyer access required" });
-    }
+const IsGuard = (req, res, next) => {
+  const user = req.user;
+  if (user.role === "guard") {
+    next();
+  } else {
+    res.status(403).send({ message: "Forbidden: Guard access required" });
+  }
 };
 
 /**
- * Authorization Middleware: Seller
+ * Authorization Middleware: Guard or Super Admin
  */
-const IsSeller = (req, res, next) => {
-     const user = req.user;
-    if (user.role === "seller") {
-        next();
-    } else {
-        res.status(403).send({ message: "Forbidden: Seller access required" });
-    }
+const IsGuardOrAdmin = (req, res, next) => {
+  const user = req.user;
+  if (user.role === "guard" || user.role === "superadmin") {
+    next();
+  } else {
+    res.status(403).send({ message: "Forbidden: Guard or Admin access required" });
+  }
 };
 
 module.exports = {
   isauthenticated,
   Isadmin,
-  Isbuyer,
-  IsSeller
+  IsGuard,
+  IsGuardOrAdmin,
 };

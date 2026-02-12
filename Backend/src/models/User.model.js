@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["driver", "superadmin"], // Restricts roles to valid system types
+    enum: ["driver", "guard", "superadmin"], // Restricts roles to valid system types
     default: "driver",
   },
   photo: {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { ShieldAlert, ArrowLeft, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { ShieldCheck, ArrowLeft, CheckCircle2, XCircle, Loader2, Camera, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
 
@@ -11,11 +11,11 @@ const GuardExitScanner = () => {
     const [scanResult, setScanResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const scannerRef = useRef(null);
-    const isScannerRendered = useRef(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const html5QrCodeRef = useRef(null);
+    const scannerContainerId = "reader-exit";
 
     useEffect(() => {
-        // Fetch parking lots for selection
         const fetchLots = async () => {
             try {
                 const response = await fetch('http://localhost:8000/api/v1/parking/lots');
@@ -28,83 +28,87 @@ const GuardExitScanner = () => {
                 console.error('Failed to fetch lots:', err);
             }
         };
-
         fetchLots();
 
-        // Initialize QR Scanner
-        const initScanner = async () => {
-            // Wait a tiny bit to ensure any previous instance is fully cleared from DOM
-            await new Promise(r => setTimeout(r, 100));
-            
-            const readerElement = document.getElementById('reader');
-            if (!readerElement || isScannerRendered.current) return;
-
-            // Force clear the container before starting
-            readerElement.innerHTML = '';
-
-            const scanner = new Html5QrcodeScanner('reader', {
-                qrbox: (viewfinderWidth, viewfinderHeight) => {
-                    return {
-                        width: viewfinderWidth * 0.7,
-                        height: viewfinderWidth * 0.7
-                    };
-                },
-                fps: 20,
-                rememberLastUsedCamera: true,
-                showTorchButtonIfSupported: true,
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true
-                },
-                supportedScanTypes: [0] // Force camera only
-            });
-
-            const onScanSuccess = (result) => {
-                scanner.clear().then(() => {
-                    isScannerRendered.current = false;
-                    handleExit(result);
-                }).catch(err => {
-                    console.error("Failed to clear scanner:", err);
-                    handleExit(result);
-                });
-            };
-
-            const onScanError = (err) => {
-                // Ignore errors
-            };
-
-            try {
-                scanner.render(onScanSuccess, onScanError);
-                scannerRef.current = scanner;
-                isScannerRendered.current = true;
-            } catch (err) {
-                console.error("Scanner render error:", err);
-            }
-        };
-
-        initScanner();
-
-        // Cleanup function
         return () => {
-            if (scannerRef.current) {
-                const scanner = scannerRef.current;
-                scannerRef.current = null;
-                isScannerRendered.current = false;
-                
-                scanner.clear().catch(error => {
-                    console.error("Cleanup error:", error);
-                }).finally(() => {
-                    const readerElement = document.getElementById('reader');
-                    if (readerElement) readerElement.innerHTML = '';
-                });
-            }
+            stopScanner();
         };
     }, []);
+
+    const startScanner = async () => {
+        try {
+            setError(null);
+            
+            // Ensure the element exists in DOM before initializing
+            const element = document.getElementById(scannerContainerId);
+            if (!element) {
+                console.error(`Scanner container #${scannerContainerId} not found in DOM`);
+                setError("Scanner initialization failed. Please refresh the page.");
+                return;
+            }
+
+            const html5QrCode = new Html5Qrcode(scannerContainerId);
+            html5QrCodeRef.current = html5QrCode;
+
+            const config = {
+                fps: 20,
+                qrbox: { width: 280, height: 280 },
+                aspectRatio: 1.0
+            };
+
+            await html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    handleScanSuccess(decodedText);
+                },
+                (errorMessage) => {
+                    // Ignore constant scan errors
+                }
+            );
+            setIsScanning(true);
+        } catch (err) {
+            console.error("Failed to start scanner:", err);
+            setError("Could not access camera. Please ensure permissions are granted.");
+        }
+    };
+
+    const stopScanner = async () => {
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+            try {
+                await html5QrCodeRef.current.stop();
+                html5QrCodeRef.current = null;
+                setIsScanning(false);
+            } catch (err) {
+                console.error("Failed to stop scanner:", err);
+            }
+        }
+    };
+
+    const handleScanSuccess = async (decodedText) => {
+        await stopScanner();
+        
+        try {
+            // Try to parse if it's a JSON string (from Profile.jsx)
+            const parsedData = JSON.parse(decodedText);
+            if (parsedData.userId) {
+                handleExit(parsedData.userId);
+            } else {
+                handleExit(decodedText);
+            }
+        } catch (e) {
+            // If not JSON, assume it's the raw ID
+            handleExit(decodedText);
+        }
+    };
 
     const handleExit = async (userId) => {
         if (!selectedLot) {
             setError('Please select a parking lot first');
             return;
         }
+
+        console.log("Processing exit for:", { userId, parkingLotId: selectedLot });
 
         setLoading(true);
         setError(null);
@@ -137,78 +141,113 @@ const GuardExitScanner = () => {
     const resetScanner = () => {
         setScanResult(null);
         setError(null);
-        window.location.reload();
+        // Remove direct startScanner() call to avoid race condition with React rendering
     };
+
+    // Auto-start scanner when scanResult is cleared
+    useEffect(() => {
+        if (!scanResult && !isScanning && !loading) {
+            // Give React a moment to render the #reader div
+            const timer = setTimeout(() => {
+                const element = document.getElementById(scannerContainerId);
+                if (element) {
+                    startScanner();
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [scanResult]);
 
     return (
         <div className="admin-container">
-            <header className="admin-header">
-                <div className="header-left">
-                    <button onClick={() => navigate('/admin')} className="back-btn" style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ArrowLeft size={20} />
-                        <span>Back to Dashboard</span>
+            <div className="admin-main" style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+                <header style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
+                    <button onClick={() => navigate('/guard')} className="back-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                        <ArrowLeft size={24} />
                     </button>
-                    <h1>Guard Exit Point</h1>
-                </div>
-            </header>
+                    <div>
+                        <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', margin: 0 }}>Guard Exit Point</h1>
+                        <p style={{ color: '#64748b', margin: '4px 0 0 0' }}>Scan user QR code for check-out</p>
+                    </div>
+                </header>
 
-            <main className="admin-main">
-                <div className="stats-grid" style={{ gridTemplateColumns: '1fr', maxWidth: '600px', margin: '0 auto' }}>
-                    <div className="stat-card">
-                        <div style={{ marginBottom: '20px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Select Your Parking Lot:</label>
-                            <select 
-                                value={selectedLot} 
-                                onChange={(e) => setSelectedLot(e.target.value)}
-                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
-                            >
-                                {parkingLots.map(lot => (
-                                    <option key={lot._id} value={lot._id}>{lot.name} ({lot.location})</option>
-                                ))}
-                            </select>
-                        </div>
+                <div className="scanner-section" style={{ background: 'white', padding: '30px', borderRadius: '20px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+                    <div style={{ marginBottom: '25px' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#475569' }}>Select Your Parking Lot:</label>
+                        <select 
+                            value={selectedLot} 
+                            onChange={(e) => setSelectedLot(e.target.value)}
+                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc' }}
+                        >
+                            {parkingLots.map(lot => (
+                                <option key={lot._id} value={lot._id}>{lot.name} ({lot.occupiedSpots || 0} spots occupied)</option>
+                            ))}
+                        </select>
+                    </div>
 
+                    <div style={{ position: 'relative', background: '#f1f5f9', borderRadius: '15px', overflow: 'hidden', minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                         {!scanResult ? (
-                            <div className="scanner-card">
-                                <div id="reader" style={{ width: '100%' }}></div>
-                                <div className="scanner-hint" style={{ textAlign: 'center', marginTop: '15px', color: '#64748b', fontSize: '14px' }}>
-                                    Align the QR code within the square to scan
-                                </div>
-                            </div>
+                            <>
+                                <div id={scannerContainerId} style={{ width: '100%', maxWidth: '400px' }}></div>
+                                {!isScanning && (
+                                    <button 
+                                        onClick={startScanner}
+                                        style={{ padding: '15px 30px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                                    >
+                                        <Camera size={20} />
+                                        Start Camera
+                                    </button>
+                                )}
+                                {isScanning && (
+                                    <>
+                                        <div className="scanner-overlay">
+                                            <div className="scanner-line" style={{ background: 'rgba(239, 68, 68, 0.8)', boxShadow: '0 0 15px 2px rgba(239, 68, 68, 0.5)' }}></div>
+                                        </div>
+                                        <div style={{ padding: '15px', color: '#64748b', fontSize: '14px', textAlign: 'center' }}>
+                                            <RefreshCw size={16} className="spin" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                                            Scanning for QR code...
+                                        </div>
+                                    </>
+                                )}
+                            </>
                         ) : (
                             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
                                 {scanResult === 'success' ? (
                                     <>
                                         <CheckCircle2 size={80} color="#10b981" style={{ marginBottom: '20px' }} />
-                                        <h2 style={{ color: '#10b981' }}>Exit Processed!</h2>
-                                        <p>User has been checked out. One slot is now free.</p>
+                                        <h2 style={{ color: '#10b981' }}>Exit Successful!</h2>
+                                        <p>User has been checked out. Slot released.</p>
                                     </>
                                 ) : (
                                     <>
                                         <XCircle size={80} color="#ef4444" style={{ marginBottom: '20px' }} />
                                         <h2 style={{ color: '#ef4444' }}>Exit Failed</h2>
-                                        <p>{error}</p>
+                                        <p>{error || 'An error occurred during exit.'}</p>
                                     </>
                                 )}
                                 <button 
                                     onClick={resetScanner}
-                                    className="add-btn"
-                                    style={{ marginTop: '30px', width: '100%', background: '#4b5563' }}
+                                    style={{ marginTop: '25px', padding: '12px 25px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}
                                 >
                                     Scan Next User
                                 </button>
                             </div>
                         )}
-
-                        {loading && (
-                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', borderRadius: '15px' }}>
-                                <Loader2 className="animate-spin" size={40} color="#2563eb" />
-                                <p style={{ marginTop: '10px', fontWeight: 'bold' }}>Processing Exit...</p>
-                            </div>
-                        )}
                     </div>
+
+                    {error && !scanResult && (
+                        <div style={{ marginTop: '20px', padding: '15px', background: '#fef2f2', color: '#ef4444', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <XCircle size={20} />
+                            <span>{error}</span>
+                        </div>
+                    )}
                 </div>
-            </main>
+            </div>
+
+            <style>{`
+                .spin { animation: spin 2s linear infinite; }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}</style>
         </div>
     );
 };

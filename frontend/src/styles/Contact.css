@@ -335,17 +335,6 @@
     font-size: 13px;
   }
 }
-  border-radius: 5px;
-  font-size: 1.1em;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  align-self: center; /* Center the button */
-  width: 50%; /* Make button take half width */
-}
-
-.submit-btn:hover {
-  background-color: #4f53d1; /* Darker shade on hover */
-}
 
 .form-status {
   margin-top: 20px;
@@ -353,3 +342,4 @@
   font-weight: bold;
   color: #6366f1;
 }
+

@@ -12,6 +12,7 @@ const {
   updateSystemConfig,
   getAllUsers,
   deleteUser,
+  createGuardAccount,
 } = require("../controller/admin.controller");
 const { isauthenticated, Isadmin } = require("../middleware/auth");
 
@@ -38,6 +39,7 @@ router.put("/config", updateSystemConfig);
 
 // User Management
 router.get("/users", getAllUsers);
+router.post("/guards", createGuardAccount);
 router.delete("/users/:id", deleteUser);
 
 module.exports = router;

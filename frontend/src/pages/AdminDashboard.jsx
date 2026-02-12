@@ -286,6 +286,46 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleCreateGuard = async () => {
+    const firstName = window.prompt('Guard first name:');
+    if (!firstName) return;
+
+    const lastName = window.prompt('Guard last name:');
+    if (!lastName) return;
+
+    const email = window.prompt('Guard email:');
+    if (!email) return;
+
+    const username = window.prompt('Guard username (optional):') || '';
+    const password = window.prompt('Set temporary password (min 6 chars):');
+    if (!password || password.length < 6) {
+      alert('Password must be at least 6 characters.');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/guards', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ firstName, lastName, username, email, password })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Guard account created. Username: ${data.data.username}`);
+        fetchUsers();
+      } else {
+        alert(data.message || 'Failed to create guard account');
+      }
+    } catch (err) {
+      console.error('Error creating guard:', err);
+      alert('Failed to create guard account');
+    }
+  };
   const handleDeleteUser = async (id) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     const token = localStorage.getItem('token');
@@ -390,26 +430,6 @@ const AdminDashboard = () => {
             <Users size={20} />
             <span>Manage Users</span>
           </button>
-
-          <div className="nav-divider" style={{ margin: '10px 20px', height: '1px', background: '#334155' }}></div>
-          <span className="nav-group-label" style={{ padding: '0 20px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '10px', display: 'block' }}>Guard Controls</span>
-          
-          <button 
-            className="nav-item"
-            onClick={() => navigate('/admin/entry')}
-          >
-            <ShieldCheck size={20} />
-            <span>Entry Scanner</span>
-          </button>
-
-          <button 
-            className="nav-item"
-            onClick={() => navigate('/admin/exit')}
-          >
-            <ShieldAlert size={20} />
-            <span>Exit Scanner</span>
-          </button>
-
           <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>
             <Settings size={20} />
             <span>Setup</span>
@@ -710,7 +730,7 @@ const AdminDashboard = () => {
         ) : activeTab === 'users' ? (
           <section className="users-section" style={{ padding: '20px' }}>
             <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b' }}>Platform Users</h3>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b' }}>Platform Users</h3><button onClick={handleCreateGuard} style={{ background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', fontWeight: '600' }}>Create Guard Login</button>
               <div style={{ position: 'relative', width: '300px' }}>
                 <input 
                   type="text" 
@@ -747,7 +767,7 @@ const AdminDashboard = () => {
                         </td>
                         <td style={{ padding: '15px 20px', color: '#64748b' }}>{u.email}</td>
                         <td style={{ padding: '15px 20px' }}>
-                          <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700', background: u.role === 'admin' ? '#eef2ff' : '#f8fafc', color: u.role === 'admin' ? '#4f46e5' : '#64748b' }}>
+                          <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700', background: u.role === 'guard' ? '#ecfeff' : '#f8fafc', color: u.role === 'guard' ? '#0e7490' : '#64748b' }}>
                             {u.role.toUpperCase()}
                           </span>
                         </td>

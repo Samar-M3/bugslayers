@@ -81,40 +81,200 @@ const parkingIcon = new L.Icon({
 const RecenterMap = ({ position }) => {
   const map = useMap();
   useEffect(() => {
-    if (position) {
-      map.setView(position, 15);
+    if (!map || !position) return;
+
+    try {
+      // Preserve the current zoom level when recentering so user zoom isn't forced.
+      const currentZoom = map.getZoom ? map.getZoom() : 15;
+
+      // Only recenter if the new position is meaningfully far from current center (avoid jitter)
+      const currentCenter = map.getCenter();
+      const newLatLng = L.latLng(position[0], position[1]);
+      const distanceMeters = currentCenter ? currentCenter.distanceTo(newLatLng) : Infinity;
+
+        // If the user recently interacted with the map, do not auto-recenter.
+        if (map._userInteracted) return;
+
+        if (distanceMeters > 50) { // only recenter if >50 meters away
+          map.setView(newLatLng, currentZoom);
+        }
+    } catch (err) {
+      console.error('RecenterMap error', err);
     }
   }, [position, map]);
   return null;
 };
 
 /**
- * RoutingMachine Component
- * Uses Leaflet Routing Machine to draw the path from user to a parking lot.
+ * MapInteractionHandler
+ * Attaches DOM listeners to detect user gestures (mouse/touch/wheel/keyboard) and
+ * sets a temporary flag on the map to prevent automatic recenters or fitBounds.
+ */
+const MapInteractionHandler = () => {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+
+    let timeoutId = null;
+
+    const setUserInteracted = () => {
+      try {
+        map._userInteracted = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        // After 30s of no interaction, allow auto actions again
+        timeoutId = setTimeout(() => { map._userInteracted = false; timeoutId = null; }, 30000);
+      } catch (e) {
+        console.error('Interaction handler error', e);
+      }
+    };
+
+    const container = map.getContainer();
+    container.addEventListener('mousedown', setUserInteracted);
+    container.addEventListener('touchstart', setUserInteracted);
+    container.addEventListener('wheel', setUserInteracted);
+    window.addEventListener('keydown', setUserInteracted);
+
+    return () => {
+      container.removeEventListener('mousedown', setUserInteracted);
+      container.removeEventListener('touchstart', setUserInteracted);
+      container.removeEventListener('wheel', setUserInteracted);
+      window.removeEventListener('keydown', setUserInteracted);
+      if (timeoutId) clearTimeout(timeoutId);
+      map._userInteracted = false;
+    };
+  }, [map]);
+  return null;
+};
+
+/**
+ * RoutingMachine Component (fastest-route using Google Directions, fallback to OSRM)
+ * Prefers the route with the lowest duration (fastest) as Google Maps chooses.
  */
 const RoutingMachine = ({ userLoc, destinationLoc }) => {
   const map = useMap();
 
+  // Decode an encoded polyline (Google polyline algorithm) to an array of [lat, lon]
+  const decodePolyline = (encoded) => {
+    if (!encoded) return [];
+    const points = [];
+    let index = 0, lat = 0, lng = 0;
+
+    while (index < encoded.length) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const deltaLat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += deltaLat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      const deltaLon = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += deltaLon;
+
+      points.push([lat / 1e5, lng / 1e5]);
+    }
+
+    return points;
+  };
+
   useEffect(() => {
     if (!map || !userLoc || !destinationLoc) return;
 
-    const routingControl = L.Routing.control({
-      waypoints: [
-        L.latLng(userLoc[0], userLoc[1]),
-        L.latLng(destinationLoc[0], destinationLoc[1])
-      ],
-      lineOptions: {
-        styles: [{ color: '#6366f1', weight: 6 }]
-      },
-      show: false,
-      addWaypoints: false,
-      routeWhileDragging: false,
-      draggableWaypoints: false,
-      fitSelectedRoutes: true,
-      createMarker: () => null // We already have our own markers
-    }).addTo(map);
+    const [uLat, uLon] = userLoc;
+    const [dLat, dLon] = destinationLoc;
 
-    return () => map.removeControl(routingControl);
+    const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+    // Clear any existing route layer before drawing a new one
+    if (map._activeRouteLayer) {
+      map.removeLayer(map._activeRouteLayer);
+      map._activeRouteLayer = null;
+    }
+
+    const drawGeoPoints = (points) => {
+      // Clear any existing route first
+      if (map._activeRouteLayer) {
+        map.removeLayer(map._activeRouteLayer);
+        map._activeRouteLayer = null;
+      }
+      map._activeRouteLayer = L.polyline(points, { color: '#6366f1', weight: 6, opacity: 0.95 }).addTo(map);
+      const bounds = map._activeRouteLayer.getBounds();
+        if (bounds.isValid() && !map._userInteracted) map.fitBounds(bounds.pad(0.15));
+    };
+
+    const fetchGoogleAndDraw = async () => {
+      try {
+        if (!GOOGLE_KEY) return false;
+        // Google Directions REST API expects origin and destination as lat,lng
+        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${uLat},${uLon}&destination=${dLat},${dLon}&alternatives=true&mode=driving&key=${GOOGLE_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data || data.status !== 'OK' || !data.routes || data.routes.length === 0) {
+          console.warn('Google Directions unavailable or returned no routes', data?.status);
+          return false;
+        }
+
+        // Choose route with smallest duration (fastest)
+        let fastest = data.routes[0];
+        for (const r of data.routes) {
+          const rDur = r.legs.reduce((s, leg) => s + (leg.duration?.value || 0), 0);
+          const fDur = fastest.legs.reduce((s, leg) => s + (leg.duration?.value || 0), 0);
+          if (rDur < fDur) fastest = r;
+        }
+
+        // Decode polyline to lat,lng pairs
+        const encoded = fastest.overview_polyline?.points;
+        const latlngs = decodePolyline(encoded);
+        drawGeoPoints(latlngs);
+        return true;
+      } catch (err) {
+        console.error('Google routing error', err);
+        return false;
+      }
+    };
+
+    const fetchOSRMAndDraw = async () => {
+      try {
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${uLon},${uLat};${dLon},${dLat}?alternatives=true&overview=full&geometries=geojson`;
+        const res = await fetch(osrmUrl);
+        const data = await res.json();
+        if (!data || !data.routes || data.routes.length === 0) return false;
+
+        // Choose route with smallest duration (fastest) from OSRM
+        let fastest = data.routes[0];
+        for (const r of data.routes) {
+          if (r.duration < fastest.duration) fastest = r;
+        }
+
+        const coords = fastest.geometry.coordinates.map(c => [c[1], c[0]]);
+        drawGeoPoints(coords);
+        return true;
+      } catch (err) {
+        console.error('OSRM routing error', err);
+        return false;
+      }
+    };
+
+    (async () => {
+      const usedGoogle = await fetchGoogleAndDraw();
+      if (!usedGoogle) await fetchOSRMAndDraw();
+    })();
+
+    return () => {
+      if (map._activeRouteLayer) {
+        map.removeLayer(map._activeRouteLayer);
+        map._activeRouteLayer = null;
+      }
+    };
   }, [map, userLoc, destinationLoc]);
 
   return null;
