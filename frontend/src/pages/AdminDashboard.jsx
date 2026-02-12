@@ -12,7 +12,10 @@ import {
   Plus,
   LogOut,
   Users,
-  FileText
+  FileText,
+  Scan,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -387,6 +390,26 @@ const AdminDashboard = () => {
             <Users size={20} />
             <span>Manage Users</span>
           </button>
+
+          <div className="nav-divider" style={{ margin: '10px 20px', height: '1px', background: '#334155' }}></div>
+          <span className="nav-group-label" style={{ padding: '0 20px', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '10px', display: 'block' }}>Guard Controls</span>
+          
+          <button 
+            className="nav-item"
+            onClick={() => navigate('/admin/entry')}
+          >
+            <ShieldCheck size={20} />
+            <span>Entry Scanner</span>
+          </button>
+
+          <button 
+            className="nav-item"
+            onClick={() => navigate('/admin/exit')}
+          >
+            <ShieldAlert size={20} />
+            <span>Exit Scanner</span>
+          </button>
+
           <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>
             <Settings size={20} />
             <span>Setup</span>

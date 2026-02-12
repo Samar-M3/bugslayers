@@ -8,6 +8,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import GuardEntryScanner from './pages/GuardEntryScanner';
+import GuardExitScanner from './pages/GuardExitScanner';
 import NotFound from './pages/NotFound';
 import ForgotPassword from './pages/ForgotPassword'; // Ensure ForgotPassword is imported
 import './styles/global.css';
@@ -62,8 +64,10 @@ function App() {
 
             {/* --- Protected Routes (Login Required) --- */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            {/* Admin only route */}
+            {/* Admin only routes */}
             <Route path="/admin" element={<ProtectedRoute roles={['superadmin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/entry" element={<ProtectedRoute roles={['superadmin']}><GuardEntryScanner /></ProtectedRoute>} />
+            <Route path="/admin/exit" element={<ProtectedRoute roles={['superadmin']}><GuardExitScanner /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/contact" element={<ProtectedRoute><Contact /></ProtectedRoute>} />
             <Route path="/history" element={<ProtectedRoute><BookingHistory /></ProtectedRoute>} />

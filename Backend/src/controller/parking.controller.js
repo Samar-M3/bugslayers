@@ -75,6 +75,93 @@ exports.getActiveSession = async (req, res, next) => {
 };
 
 /**
+ * Guard QR Entry
+ * Process user entry when guard scans the user's QR code.
+ * Changes session status from 'booked' to 'active' or starts a new session.
+ */
+exports.guardEntry = async (req, res, next) => {
+  try {
+    const { userId, parkingLotId } = req.body;
+
+    // Find the latest booking for this user at this parking lot
+    let session = await ParkingSession.findOne({
+      user: userId,
+      parkingLot: parkingLotId,
+      status: "booked",
+    }).sort({ createdAt: -1 });
+
+    if (!session) {
+      // If no booking found, create a new active session directly (walk-in)
+      session = await ParkingSession.create({
+        user: userId,
+        parkingLot: parkingLotId,
+        status: "active",
+        startTime: new Date(),
+      });
+
+      // Update occupancy for walk-in
+      await ParkingLot.findByIdAndUpdate(parkingLotId, { $inc: { occupiedSpots: 1 } });
+    } else {
+      // If booking exists, activate it
+      session.status = "active";
+      session.startTime = new Date();
+      await session.save();
+      // Occupancy was already incremented during booking
+    }
+
+    res.status(200).json({ success: true, message: "Entry successful", data: session });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Guard QR Exit
+ * Process user exit when guard scans the user's QR code.
+ * Completes the active session and frees up the parking slot.
+ */
+exports.guardExit = async (req, res, next) => {
+  try {
+    const { userId, parkingLotId } = req.body;
+
+    const session = await ParkingSession.findOne({
+      user: userId,
+      parkingLot: parkingLotId,
+      status: "active",
+    }).populate("parkingLot");
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: "No active session found for this user" });
+    }
+
+    const endTime = new Date();
+    const durationHours = Math.max(1, Math.ceil((endTime - session.startTime) / (1000 * 60 * 60)));
+    const totalAmount = durationHours * session.parkingLot.pricePerHour;
+
+    session.endTime = endTime;
+    session.totalAmount = totalAmount;
+    session.status = "completed";
+    await session.save();
+
+    // Free up the slot
+    const updatedLot = await ParkingLot.findByIdAndUpdate(
+      parkingLotId,
+      { $inc: { occupiedSpots: -1 } },
+      { new: true }
+    );
+
+    // Update lot status if needed
+    if (updatedLot && updatedLot.occupiedSpots < updatedLot.totalSpots) {
+      await ParkingLot.findByIdAndUpdate(parkingLotId, { status: "available" });
+    }
+
+    res.status(200).json({ success: true, message: "Exit successful", data: session });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Start Parking Session
  * Initializes a new parking session, checks for duplicates, and updates lot occupancy.
  */

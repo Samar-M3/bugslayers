@@ -570,3 +570,76 @@
     height: 40px;
   }
 }
+
+/* Guard Scanner Styles */
+#reader {
+  border: none !important;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+}
+
+#reader__scan_region {
+  background: #f8fafc;
+  display: block !important; /* Changed from flex to block to prevent side-by-side */
+  position: relative;
+  width: 100% !important;
+  height: auto !important;
+}
+
+#reader video {
+  width: 100% !important;
+  height: auto !important; /* Changed from 100% to auto to prevent vertical stretching */
+  object-fit: contain !important; /* Changed from cover to contain to ensure full QR is visible */
+  border-radius: 8px;
+  display: block;
+}
+
+#reader__dashboard {
+  padding: 15px !important;
+  background: #fff !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+#reader__dashboard_section_csr button {
+  background: var(--admin-primary) !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  margin: 5px !important;
+}
+
+#reader__dashboard_section_csr button:hover {
+  opacity: 0.9;
+}
+
+#reader__camera_selection {
+  padding: 8px !important;
+  border-radius: 6px !important;
+  border: 1px solid #e2e8f0 !important;
+  margin-bottom: 10px !important;
+  width: 100% !important;
+}
+
+/* Centering and sizing the scan region */
+#reader__scan_region canvas {
+  width: 100% !important;
+  height: auto !important;
+}
+
+#reader__scan_region {
+  position: relative;
+}
+
+/* Make the QR box more visible */
+#reader__scan_region::after {
+  display: none; /* Removed the manual overlay as it might confuse the library's internal box */
+}
+
+#reader video {
+  z-index: 1;
+}
