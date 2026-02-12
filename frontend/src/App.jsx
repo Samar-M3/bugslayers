@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import LandingPage from './pages/LandingPage';
+import HomeRedirect from './components/HomeRedirect';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -12,13 +12,16 @@ import ForgotPassword from './pages/ForgotPassword'; // Ensure ForgotPassword is
 import './styles/global.css';
 import Profile from './pages/Profile';
 import Contact from './pages/Contact';
+import PublicLayout from './components/PublicLayout';
 import BottomNavbar from './components/BottomNavbar';
 
 const Layout = ({ children }) => {
-  const { user, loading } = useAuth(); // Use useAuth hook
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   if (loading) {
-    return <div>Loading application...</div>; // Or a loading spinner
+    return <div>Loading application...</div>;
   }
 
   return (
@@ -26,7 +29,7 @@ const Layout = ({ children }) => {
       <main>
         {children}
       </main>
-      {user && <BottomNavbar />} {/* Render BottomNavbar only if user is logged in */}
+      {user && !isAdminRoute && <BottomNavbar />}
     </div>
   );
 };
@@ -38,9 +41,9 @@ function App() {
         <Layout>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/" element={<HomeRedirect />} />
+            <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
+            <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
             <Route path="/forgot-password" element={<ForgotPassword />} /> {/* Add forgot password route */}
 
             {/* Protected routes */}

@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet-routing-machine';
+import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
 import 'leaflet/dist/leaflet.css';
 import '../styles/Dashboard.css';
 
@@ -23,7 +25,6 @@ import '../styles/Dashboard.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { Link } from 'react-router-dom';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -31,6 +32,24 @@ L.Icon.Default.mergeOptions({
     iconUrl: markerIcon,
     shadowUrl: markerShadow,
 });
+
+// --- Haversine Formula for Distance Calculation ---
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+};
+
+const deg2rad = (deg) => {
+  return deg * (Math.PI / 180);
+};
 
 // Custom User Location Icon
 const userIcon = new L.Icon({
@@ -63,6 +82,35 @@ const RecenterMap = ({ position }) => {
   return null;
 };
 
+// --- Component to handle routing path ---
+const RoutingMachine = ({ userLoc, destinationLoc }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !userLoc || !destinationLoc) return;
+
+    const routingControl = L.Routing.control({
+      waypoints: [
+        L.latLng(userLoc[0], userLoc[1]),
+        L.latLng(destinationLoc[0], destinationLoc[1])
+      ],
+      lineOptions: {
+        styles: [{ color: '#6366f1', weight: 6 }]
+      },
+      show: false,
+      addWaypoints: false,
+      routeWhileDragging: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: true,
+      createMarker: () => null // We already have our own markers
+    }).addTo(map);
+
+    return () => map.removeControl(routingControl);
+  }, [map, userLoc, destinationLoc]);
+
+  return null;
+};
+
 const Dashboard = () => {
   // --- State Management ---
   const [isParked, setIsParked] = useState(false);
@@ -76,6 +124,7 @@ const Dashboard = () => {
   const [mapCenter, setMapCenter] = useState([27.7172, 85.3240]); // Default to Kathmandu
   const [activeCategory, setActiveCategory] = useState('car');
   const [isSheetExpanded, setIsSheetExpanded] = useState(false);
+  const [destination, setDestination] = useState(null);
 
   // --- Logic: Fetch Data from Backend ---
   const fetchData = async (lat, lon) => {
@@ -88,7 +137,19 @@ const Dashboard = () => {
       
       const lotsRes = await fetch(url);
       const lotsData = await lotsRes.json();
-      if (lotsData.success) setParkingLots(lotsData.data);
+      if (lotsData.success) {
+        let processedLots = lotsData.data;
+        
+        // If userLocation is available, calculate and inject distance locally
+        if (userLocation) {
+          processedLots = processedLots.map(lot => ({
+            ...lot,
+            distance: calculateDistance(userLocation[0], userLocation[1], lot.lat, lot.lon)
+          })).sort((a, b) => a.distance - b.distance); // Sort by closest
+        }
+        
+        setParkingLots(processedLots);
+      }
 
       // Fetch Active Session (Requires Auth Token)
       const token = localStorage.getItem('token');
@@ -146,8 +207,16 @@ const Dashboard = () => {
           setUserLocation([latitude, longitude]);
           console.log("Updated location:", latitude, longitude);
           
-          // Only fetch nearby lots based on real location if map center hasn't been moved manually
-          // Or just update nearby lots whenever location changes significantly
+          // Re-calculate distances for existing lots without fetching again
+          setParkingLots(prevLots => {
+            const updated = prevLots.map(lot => ({
+              ...lot,
+              distance: calculateDistance(latitude, longitude, lot.lat, lot.lon)
+            })).sort((a, b) => a.distance - b.distance);
+            return updated;
+          });
+
+          // Fetch nearby lots based on real location
           fetchData(latitude, longitude);
         },
         (error) => {
@@ -221,6 +290,10 @@ const Dashboard = () => {
               
               <RecenterMap position={mapCenter} />
 
+              {userLocation && destination && (
+                <RoutingMachine userLoc={userLocation} destinationLoc={destination} />
+              )}
+
               {userLocation && (
                 <Marker position={userLocation} icon={userIcon}>
                   <Popup>You are here (Live)</Popup>
@@ -232,7 +305,23 @@ const Dashboard = () => {
                   <Popup>
                     <strong>{lot.name}</strong><br />
                     Price: NPR {lot.pricePerHour}/hr<br />
-                    Status: {lot.status}
+                    Status: {lot.status}<br />
+                    <button 
+                      className="get-directions-btn"
+                      onClick={() => setDestination([lot.lat, lot.lon])}
+                      style={{
+                        marginTop: '8px',
+                        padding: '4px 8px',
+                        backgroundColor: '#6366f1',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Get Directions
+                    </button>
                   </Popup>
                 </Marker>
               ))}
@@ -350,16 +439,62 @@ const Dashboard = () => {
                   </div>
                   <span className="occupancy-text">{lot.occupiedSpots}/{lot.totalSpots} slots</span>
                 </div>
-                <button className={`book-btn ${lot.status}`} disabled={lot.status === 'full'}>
-                  {lot.status === 'full' ? 'Sold Out' : 'Book Now'}
-                </button>
+                <div className="card-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <button 
+                    className={`book-btn ${lot.status}`} 
+                    disabled={lot.status === 'full'}
+                    style={{ flex: 1 }}
+                  >
+                    {lot.status === 'full' ? 'Sold Out' : 'Book Now'}
+                  </button>
+                  <button 
+                    className="directions-btn-outline"
+                    onClick={() => {
+                      setDestination([lot.lat, lot.lon]);
+                      setIsSheetExpanded(false);
+                      setMapCenter([lot.lat, lot.lon]);
+                    }}
+                    style={{
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid #6366f1',
+                      backgroundColor: 'transparent',
+                      color: '#6366f1',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Show Path"
+                  >
+                    <Navigation size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-
+      {/* Bottom Navigation Bar */}
+      <nav className="bottom-nav">
+        <button className="nav-item active">
+          <Compass size={24} />
+          <span>Explore</span>
+        </button>
+        <button className="nav-item">
+          <History size={24} />
+          <span>History</span>
+        </button>
+        <button className="nav-item">
+          <Wallet size={24} />
+          <span>Payments</span>
+        </button>
+        <button className="nav-item">
+          <UserIcon size={24} />
+          <span>Profile</span>
+        </button>
+      </nav>
     </div>
   );
 };
