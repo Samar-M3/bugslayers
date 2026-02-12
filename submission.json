@@ -1,0 +1,19 @@
+{
+  "teamName": "Your Team Name",
+  "projectTitle": "Project Title",
+  "tagline": "One-sentence tagline",
+  "description": "Short description",
+  "techStack": ["React", "Vite"],
+  "links": {
+    "repo": "",
+    "live": "",
+    "demoVideo": ""
+  },
+  "members": [
+    {
+      "name": "YOUR NAME",
+      "role": "Product / Backend",
+      "contact": "@handle / email"
+    }
+  ]
+}

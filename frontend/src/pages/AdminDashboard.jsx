@@ -27,7 +27,22 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import '../styles/AdminDashboard.css';
+
+// Fix Leaflet marker icon issues
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -47,9 +62,15 @@ const AdminDashboard = () => {
   const [revenueData, setRevenueData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [allLots, setAllLots] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAddingLot, setIsAddingLot] = useState(false);
+  const [isEditingLot, setIsEditingLot] = useState(false);
+  const [editingLotId, setEditingLotId] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
   const [newLot, setNewLot] = useState({
     name: '',
     lat: '',
@@ -57,6 +78,21 @@ const AdminDashboard = () => {
     pricePerHour: '',
     totalSpots: '',
     type: 'both'
+  });
+  const [editLot, setEditLot] = useState({
+    name: '',
+    lat: '',
+    lon: '',
+    pricePerHour: '',
+    totalSpots: '',
+    type: 'both'
+  });
+  const [systemConfig, setSystemConfig] = useState({
+    currency: 'NPR',
+    gracePeriod: 15,
+    taxRate: 13,
+    language: 'English',
+    twoFactorAuth: false
   });
 
   const fetchLots = async () => {
@@ -108,6 +144,64 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleUpdateLot = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/admin/lots/${editingLotId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editLot)
+      });
+      if (res.ok) {
+        setIsEditingLot(false);
+        setEditingLotId(null);
+        fetchLots();
+      }
+    } catch (err) {
+      console.error('Error updating lot:', err);
+    }
+  };
+
+  const openEditModal = (lot) => {
+    setEditingLotId(lot._id);
+    setEditLot({
+      name: lot.name,
+      lat: lot.lat,
+      lon: lot.lon,
+      pricePerHour: lot.pricePerHour,
+      totalSpots: lot.totalSpots,
+      type: lot.type
+    });
+    setIsEditingLot(true);
+  };
+
+  const handleAIScan = async () => {
+    setIsScanning(true);
+    setScanResult(null);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/ai-detect', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setScanResult({ success: true, message: data.message });
+        fetchLots(); // Refresh the list
+      } else {
+        setScanResult({ success: false, message: data.message || 'Scan failed' });
+      }
+    } catch (err) {
+      setScanResult({ success: false, message: 'Connection error during scan' });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   useEffect(() => {
     const fetchAdminData = async () => {
       const token = localStorage.getItem('token');
@@ -154,11 +248,79 @@ const AdminDashboard = () => {
     };
 
     fetchAdminData();
+    fetchUsers();
+    fetchConfig();
 
     // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchAdminData, 30000);
+    const interval = setInterval(() => {
+      fetchAdminData();
+      fetchUsers();
+      fetchConfig();
+    }, 30000);
     return () => clearInterval(interval);
   }, [navigate]);
+
+  const fetchUsers = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setAllUsers(data);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) fetchUsers();
+    } catch (err) {
+      console.error('Error deleting user:', err);
+    }
+  };
+
+  const fetchConfig = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/config', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data) setSystemConfig(data);
+    } catch (err) {
+      console.error('Error fetching config:', err);
+    }
+  };
+
+  const handleSaveConfig = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/config', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(systemConfig)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Settings saved successfully!');
+      }
+    } catch (err) {
+      console.error('Error saving config:', err);
+      alert('Failed to save settings');
+    }
+  };
 
   if (loading) {
     return (
@@ -214,6 +376,10 @@ const AdminDashboard = () => {
           <button className={activeTab === 'manage-lots' ? 'active' : ''} onClick={() => setActiveTab('manage-lots')}>
             <Plus size={20} />
             <span>Manage Lots</span>
+          </button>
+          <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>
+            <Users size={20} />
+            <span>Manage Users</span>
           </button>
           <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>
             <Settings size={20} />
@@ -366,6 +532,44 @@ const AdminDashboard = () => {
               </div>
             </section>
           </>
+        ) : activeTab === 'map' ? (
+          <section className="admin-map-section" style={{ height: 'calc(100vh - 150px)', padding: '20px' }}>
+            <div className="map-card" style={{ height: '100%', background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #f1f5f9' }}>
+              <MapContainer center={[27.7172, 85.3240]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                {allLots.map(lot => (
+                  <Marker key={lot._id} position={[lot.lat, lot.lon]}>
+                    <Popup>
+                      <div style={{ padding: '5px' }}>
+                        <h4 style={{ margin: '0 0 5px 0', color: '#1e293b' }}>{lot.name}</h4>
+                        <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#64748b' }}>
+                          Type: {lot.type.toUpperCase()}<br />
+                          Price: NPR {lot.pricePerHour}/hr<br />
+                          Occupancy: {lot.occupiedSpots}/{lot.totalSpots}
+                        </p>
+                        <div style={{ 
+                          width: '100%', 
+                          height: '6px', 
+                          background: '#f1f5f9', 
+                          borderRadius: '3px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            width: `${(lot.occupiedSpots / lot.totalSpots) * 100}%`, 
+                            height: '100%', 
+                            background: (lot.occupiedSpots / lot.totalSpots) > 0.8 ? '#ef4444' : '#6366f1'
+                          }}></div>
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            </div>
+          </section>
         ) : activeTab === 'manage-lots' ? (
           <section className="manage-lots-section" style={{ padding: '20px' }}>
             {isAddingLot && (
@@ -394,6 +598,32 @@ const AdminDashboard = () => {
               </div>
             )}
 
+            {isEditingLot && (
+              <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                <div className="modal-content" style={{ background: 'white', padding: '30px', borderRadius: '12px', width: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+                  <h3 style={{ marginBottom: '20px' }}>Edit Parking Lot</h3>
+                  <form onSubmit={handleUpdateLot} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <input type="text" placeholder="Lot Name" required value={editLot.name} onChange={e => setEditLot({...editLot, name: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input type="number" step="any" placeholder="Latitude" required value={editLot.lat} onChange={e => setEditLot({...editLot, lat: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1 }} />
+                      <input type="number" step="any" placeholder="Longitude" required value={editLot.lon} onChange={e => setEditLot({...editLot, lon: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1 }} />
+                    </div>
+                    <input type="number" placeholder="Price Per Hour (NPR)" required value={editLot.pricePerHour} onChange={e => setEditLot({...editLot, pricePerHour: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                    <input type="number" placeholder="Total Spots" required value={editLot.totalSpots} onChange={e => setEditLot({...editLot, totalSpots: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                    <select value={editLot.type} onChange={e => setEditLot({...editLot, type: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <option value="car">Car Only</option>
+                      <option value="bike">Bike Only</option>
+                      <option value="both">Both</option>
+                    </select>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                      <button type="submit" style={{ flex: 1, background: '#6366f1', color: 'white', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Update Lot</button>
+                      <button type="button" onClick={() => setIsEditingLot(false)} style={{ flex: 1, background: '#f1f5f9', color: '#475569', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
             <div className="lots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
               {allLots.map(lot => (
                 <div key={lot._id} className="lot-card" style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #f1f5f9' }}>
@@ -402,9 +632,14 @@ const AdminDashboard = () => {
                       <h4 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>{lot.name}</h4>
                       <p style={{ fontSize: '0.875rem', color: '#64748b' }}>{lot.type.toUpperCase()} • {lot.totalSpots} Spots</p>
                     </div>
-                    <button onClick={() => handleDeleteLot(lot._id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}>
-                      <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button onClick={() => openEditModal(lot)} style={{ color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}>
+                        <Settings size={20} />
+                      </button>
+                      <button onClick={() => handleDeleteLot(lot._id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}>
+                        <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
+                      </button>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: '600', color: '#6366f1' }}>NPR {lot.pricePerHour}/hr</span>
@@ -416,9 +651,189 @@ const AdminDashboard = () => {
               ))}
             </div>
           </section>
+        ) : activeTab === 'users' ? (
+          <section className="users-section" style={{ padding: '20px' }}>
+            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b' }}>Platform Users</h3>
+              <div style={{ position: 'relative', width: '300px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Search by name or email..." 
+                  value={userSearchTerm}
+                  onChange={e => setUserSearchTerm(e.target.value)}
+                  style={{ width: '100%', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
+                />
+              </div>
+            </div>
+            <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <tr>
+                    <th style={{ padding: '15px 20px', fontWeight: '600', color: '#64748b' }}>User</th>
+                    <th style={{ padding: '15px 20px', fontWeight: '600', color: '#64748b' }}>Email</th>
+                    <th style={{ padding: '15px 20px', fontWeight: '600', color: '#64748b' }}>Role</th>
+                    <th style={{ padding: '15px 20px', fontWeight: '600', color: '#64748b' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allUsers
+                    .filter(u => 
+                      u.username.toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+                      u.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+                    )
+                    .map(user => (
+                    <tr key={user._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '15px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <img src={user.photo} alt={user.username} style={{ width: '35px', height: '35px', borderRadius: '50%', objectFit: 'cover' }} />
+                          <span style={{ fontWeight: '600', color: '#1e293b' }}>{user.username}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '15px 20px', color: '#64748b' }}>{user.email}</td>
+                      <td style={{ padding: '15px 20px' }}>
+                        <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '700', background: user.role === 'driver' ? '#eff6ff' : '#fef2f2', color: user.role === 'driver' ? '#3b82f6' : '#dc2626' }}>
+                          {user.role.toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ padding: '15px 20px' }}>
+                        <button onClick={() => handleDeleteUser(user._id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '5px', borderRadius: '4px' }}>
+                          <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {allUsers.length === 0 && (
+                    <tr>
+                      <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No users found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : activeTab === 'settings' ? (
+          <section className="admin-setup-section" style={{ padding: '30px', maxWidth: '800px' }}>
+            <div className="setup-card" style={{ background: 'white', borderRadius: '16px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #f1f5f9' }}>
+              <div style={{ marginBottom: '40px' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <TrendingUp size={24} color="#6366f1" /> AI Automation Hub
+                </h3>
+                <p style={{ color: '#64748b', marginBottom: '20px' }}>
+                  Use our AI-driven scanner to automatically detect potential parking spots across Nepal's major hubs and add them to your database.
+                </p>
+                <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                  <button 
+                    onClick={handleAIScan} 
+                    disabled={isScanning}
+                    style={{ 
+                      background: isScanning ? '#94a3b8' : '#6366f1', 
+                      color: 'white', 
+                      padding: '12px 24px', 
+                      borderRadius: '8px', 
+                      border: 'none', 
+                      cursor: isScanning ? 'not-allowed' : 'pointer', 
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {isScanning ? 'Scanning Nepal Map...' : 'Trigger AI Map Scan'}
+                  </button>
+                  {scanResult && (
+                    <div style={{ marginTop: '15px', padding: '12px', borderRadius: '6px', background: scanResult.success ? '#f0fdf4' : '#fef2f2', color: scanResult.success ? '#16a34a' : '#dc2626', fontSize: '0.875rem', fontWeight: '500' }}>
+                      {scanResult.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '40px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>System Preferences</h3>
+                <form onSubmit={handleSaveConfig} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Base Currency</label>
+                    <select 
+                      value={systemConfig.currency}
+                      onChange={e => setSystemConfig({...systemConfig, currency: e.target.value})}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }}
+                    >
+                      <option value="NPR">NPR (Nepalese Rupee)</option>
+                      <option value="USD">USD (US Dollar)</option>
+                      <option value="INR">INR (Indian Rupee)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Grace Period (Mins)</label>
+                    <input 
+                      type="number" 
+                      value={systemConfig.gracePeriod}
+                      onChange={e => setSystemConfig({...systemConfig, gracePeriod: parseInt(e.target.value)})}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Tax Rate (%)</label>
+                    <input 
+                      type="number" 
+                      value={systemConfig.taxRate}
+                      onChange={e => setSystemConfig({...systemConfig, taxRate: parseInt(e.target.value)})}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }} 
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>System Language</label>
+                    <select 
+                      value={systemConfig.language}
+                      onChange={e => setSystemConfig({...systemConfig, language: e.target.value})}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }}
+                    >
+                      <option value="English">English</option>
+                      <option value="Nepali">Nepali</option>
+                      <option value="Hindi">Hindi</option>
+                    </select>
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <button type="submit" style={{ width: '100%', marginTop: '10px', background: '#1e293b', color: 'white', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
+                      Save Preferences
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>Admin Security</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px', background: '#f8fafc', borderRadius: '12px' }}>
+                  <div>
+                    <h4 style={{ fontWeight: '600', color: '#1e293b' }}>Two-Factor Authentication</h4>
+                    <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Add an extra layer of security to your account.</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={systemConfig.twoFactorAuth} 
+                    onChange={e => {
+                      const newConfig = {...systemConfig, twoFactorAuth: e.target.checked};
+                      setSystemConfig(newConfig);
+                      const token = localStorage.getItem('token');
+                      fetch('http://localhost:8000/api/v1/admin/config', {
+                        method: 'PUT',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newConfig)
+                      });
+                    }}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                  />
+                </div>
+                <button style={{ width: '100%', marginTop: '15px', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', fontWeight: '600', cursor: 'pointer', color: '#ef4444' }}>
+                  Force Logout All Sessions
+                </button>
+              </div>
+            </div>
+          </section>
         ) : (
           <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            <h3>Other sections coming soon...</h3>
+            <h3>Section coming soon...</h3>
           </div>
         )}
 

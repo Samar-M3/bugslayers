@@ -1,6 +1,7 @@
 const ParkingSession = require("../models/ParkingSession.model");
 const ParkingLot = require("../models/ParkingLot.model");
 const User = require("../models/User.model");
+const SystemConfig = require("../models/SystemConfig.model");
 
 exports.getDashboardStats = async (req, res, next) => {
   try {
@@ -13,7 +14,7 @@ exports.getDashboardStats = async (req, res, next) => {
       status: "active",
     });
     const totalLots = await ParkingLot.countDocuments();
-    const totalUsers = await User.countDocuments({ role: "buyer" });
+    const totalUsers = await User.countDocuments({ role: "driver" });
 
     // Calculate occupancy rate
     const lots = await ParkingLot.find();
@@ -410,6 +411,63 @@ exports.updateParkingLot = async (req, res, next) => {
       return res.status(404).json({ message: "Parking lot not found" });
     }
     res.json(updatedLot);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getSystemConfig = async (req, res, next) => {
+  try {
+    let config = await SystemConfig.findOne();
+    if (!config) {
+      config = await SystemConfig.create({});
+    }
+    res.json(config);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateSystemConfig = async (req, res, next) => {
+  try {
+    let config = await SystemConfig.findOne();
+    if (!config) {
+      config = await SystemConfig.create(req.body);
+    } else {
+      config = await SystemConfig.findByIdAndUpdate(config._id, req.body, {
+        new: true,
+      });
+    }
+    res.json({
+      success: true,
+      message: "System configuration updated successfully",
+      data: config,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// User Management
+exports.getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.find({ role: { $ne: "superadmin" } })
+      .select("-password")
+      .sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByIdAndDelete(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ message: "User deleted successfully" });
   } catch (error) {
     next(error);
   }
