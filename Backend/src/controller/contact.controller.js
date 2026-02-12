@@ -1,41 +1,51 @@
-const nodemailer = require('nodemailer');
-const catchAsyncError = require('../middleware/catchAsyncError');
-const ErrorHandler = require('../utils/ErrorHandler');
-const { sendResponse } = require('../utils/sendResponse');
+const nodemailer = require("nodemailer");
 
-// Configure Nodemailer transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // You can use other services like 'Outlook', 'Yahoo', etc.
-  auth: {
-    user: process.env.EMAIL_USER, // Your email address from .env
-    pass: process.env.EMAIL_PASS, // Your email password or app password from .env
-  },
-});
-
-exports.sendContactEmail = catchAsyncError(async (req, res, next) => {
-  const { name, email, subject, message } = req.body;
-
-  if (!name || !email || !subject || !message) {
-    return next(new ErrorHandler('Please fill in all fields.', 400));
-  }
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER, // Sender address
-    to: process.env.EMAIL_USER, // Recipient address (can be your own email to receive messages)
-    subject: `Contact Form: ${subject}`,
-    html: `
-      <p><strong>Name:</strong> ${name}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Subject:</strong> ${subject}</p>
-      <p><strong>Message:</strong> ${message}</p>
-    `,
-  };
-
+exports.sendContactEmail = async (req, res) => {
   try {
-    await transporter.sendMail(mailOptions);
-    sendResponse(res, 200, true, 'Message sent successfully!');
+    const { name, email, subject, message } = req.body;
+
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "Please fill in all fields.",
+      });
+    }
+
+    const emailUser = process.env.EMAIL_USERNAME;
+    const emailPass = (process.env.EMAIL_PASSWORD || "").replace(/\s+/g, "");
+
+    if (!emailUser || !emailPass) {
+      return res.status(500).json({
+        success: false,
+        message: "Email service not configured in .env",
+      });
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: emailUser,
+        pass: emailPass,
+      },
+    });
+
+    await transporter.sendMail({
+      from: emailUser,
+      to: emailUser,
+      replyTo: email,
+      subject: `Contact: ${subject}`,
+      text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Message sent successfully!",
+    });
   } catch (error) {
-    console.error('Error sending email:', error);
-    return next(new ErrorHandler('Failed to send message. Please try again later.', 500));
+    console.error("Contact email error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send message.",
+    });
   }
-});
+};

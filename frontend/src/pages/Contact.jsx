@@ -34,7 +34,7 @@ const Contact = () => {
       const data = await response.json();
 
       if (data.success) {
-        setStatus("'Message sent successfully! We'll get back to you soon.");
+        setStatus("Message sent successfully! We'll get back to you soon.");
         setStatusType('success');
         setFormData({ name: '', email: '', subject: '', message: '' });
         setTimeout(() => setStatus(''), 4000);
