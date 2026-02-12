@@ -6,7 +6,7 @@ exports.getUserBookings = async (req, res, next) => {
   try {
     const userId = req.user._id;
     const sessions = await ParkingSession.find({ user: userId })
-      .populate('parkingLot')
+      .populate("parkingLot")
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: sessions });
@@ -88,9 +88,21 @@ exports.startSession = async (req, res, next) => {
     });
 
     // Increment occupied spots
-    await ParkingLot.findByIdAndUpdate(parkingLotId, {
-      $inc: { occupiedSpots: 1 },
-    });
+    const updatedLot = await ParkingLot.findByIdAndUpdate(
+      parkingLotId,
+      { $inc: { occupiedSpots: 1 } },
+      { new: true },
+    );
+
+    if (updatedLot) {
+      const newStatus =
+        updatedLot.occupiedSpots >= updatedLot.totalSpots
+          ? "full"
+          : "available";
+      if (updatedLot.status !== newStatus) {
+        await ParkingLot.findByIdAndUpdate(parkingLotId, { status: newStatus });
+      }
+    }
 
     res.status(201).json({ success: true, data: session });
   } catch (error) {
@@ -104,32 +116,55 @@ exports.bookParking = async (req, res, next) => {
     const { parkingLotId, slots = 1, startTime, endTime } = req.body;
 
     if (!parkingLotId || !startTime || !endTime) {
-      return res.status(400).json({ success: false, message: 'parkingLotId, startTime and endTime are required' });
+      return res.status(400).json({
+        success: false,
+        message: "parkingLotId, startTime and endTime are required",
+      });
     }
 
     const lot = await ParkingLot.findById(parkingLotId);
     if (!lot) {
-      return res.status(404).json({ success: false, message: 'Parking lot not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Parking lot not found" });
     }
 
-    const available = (lot.totalSpots - (lot.occupiedSpots || 0));
+    const available = lot.totalSpots - (lot.occupiedSpots || 0);
     if (available < Number(slots)) {
-      return res.status(400).json({ success: false, message: 'Not enough available slots for requested booking' });
+      return res.status(400).json({
+        success: false,
+        message: "Not enough available slots for requested booking",
+      });
     }
 
     // create booking session with status 'booked'
     const session = await ParkingSession.create({
       user: req.user._id,
       parkingLot: parkingLotId,
-      vehicleType: lot.type === 'bike' ? 'bike' : 'car',
+      vehicleType: lot.type === "bike" ? "bike" : "car",
       startTime: new Date(startTime),
       endTime: new Date(endTime),
       slots: Number(slots),
-      status: 'booked'
+      status: "booked",
     });
 
     // Reserve slots by incrementing occupiedSpots
-    await ParkingLot.findByIdAndUpdate(parkingLotId, { $inc: { occupiedSpots: Number(slots) } });
+    const updatedLot = await ParkingLot.findByIdAndUpdate(
+      parkingLotId,
+      { $inc: { occupiedSpots: Number(slots) } },
+      { new: true },
+    );
+
+    // Manually trigger status update since findByIdAndUpdate doesn't trigger pre-save hooks
+    if (updatedLot) {
+      const newStatus =
+        updatedLot.occupiedSpots >= updatedLot.totalSpots
+          ? "full"
+          : "available";
+      if (updatedLot.status !== newStatus) {
+        await ParkingLot.findByIdAndUpdate(parkingLotId, { status: newStatus });
+      }
+    }
 
     res.status(201).json({ success: true, data: session });
   } catch (error) {
@@ -165,9 +200,23 @@ exports.completeSession = async (req, res, next) => {
     await session.save();
 
     // Decrement occupied spots
-    await ParkingLot.findByIdAndUpdate(session.parkingLot._id, {
-      $inc: { occupiedSpots: -1 },
-    });
+    const updatedLot = await ParkingLot.findByIdAndUpdate(
+      session.parkingLot._id,
+      { $inc: { occupiedSpots: -1 } },
+      { new: true },
+    );
+
+    if (updatedLot) {
+      const newStatus =
+        updatedLot.occupiedSpots >= updatedLot.totalSpots
+          ? "full"
+          : "available";
+      if (updatedLot.status !== newStatus) {
+        await ParkingLot.findByIdAndUpdate(session.parkingLot._id, {
+          status: newStatus,
+        });
+      }
+    }
 
     res.status(200).json({ success: true, data: session });
   } catch (error) {

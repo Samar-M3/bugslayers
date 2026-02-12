@@ -395,25 +395,40 @@ const Dashboard = () => {
               {parkingLots.map(lot => (
                 <Marker key={lot._id} position={[lot.lat, lot.lon]} icon={parkingIcon}>
                   <Popup>
-                    <strong>{lot.name}</strong><br />
-                    Price: NPR {lot.pricePerHour}/hr<br />
-                    Status: {lot.status}<br />
-                    <button 
-                      className="get-directions-btn"
-                      onClick={() => setDestination([lot.lat, lot.lon])}
-                      style={{
-                        marginTop: '8px',
-                        padding: '4px 8px',
-                        backgroundColor: '#6366f1',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px'
-                      }}
-                    >
-                      Get Directions
-                    </button>
+                    <div className="map-popup-content">
+                      <strong className="popup-title">{lot.name}</strong>
+                      <div className="popup-details">
+                        <div className="popup-detail-item">
+                          <span className="detail-label">Type:</span>
+                          <span className="detail-value">{(lot.type || 'BOTH').toUpperCase()}</span>
+                        </div>
+                        <div className="popup-detail-item">
+                          <span className="detail-label">Price:</span>
+                          <span className="detail-value">NPR {lot.pricePerHour}/hr</span>
+                        </div>
+                        <div className="popup-detail-item">
+                          <span className="detail-label">Occupancy:</span>
+                          <span className="detail-value">{lot.occupiedSpots || 0}/{lot.totalSpots || 0}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="popup-occupancy-bar">
+                        <div 
+                          className="popup-occupancy-fill" 
+                          style={{ 
+                            width: `${Math.min(100, ((lot.occupiedSpots || 0) / (lot.totalSpots || 1)) * 100)}%`,
+                            backgroundColor: ((lot.occupiedSpots || 0) / (lot.totalSpots || 1)) > 0.9 ? '#ef4444' : '#6366f1'
+                          }}
+                        ></div>
+                      </div>
+
+                      <button 
+                        className="get-directions-btn"
+                        onClick={() => setDestination([lot.lat, lot.lon])}
+                      >
+                        Get Directions
+                      </button>
+                    </div>
                   </Popup>
                 </Marker>
               ))}
