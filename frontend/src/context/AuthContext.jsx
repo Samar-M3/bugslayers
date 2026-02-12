@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode'; // Correct import for jwt-decode
+import jwtDecode from 'jwt-decode'; // Correct import for jwt-decode
 
 /**
  * AuthContext

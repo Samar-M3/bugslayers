@@ -1,13 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Compass, User as UserIcon, Clock } from 'lucide-react';
-import '../styles/BottomNavbar.css'; // We'll create this CSS file
+import { Compass, User as UserIcon, Clock, Mail, Bell } from 'lucide-react';
+import '../styles/BottomNavbar.css';
 
 const BottomNavbar = () => {
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      // Open sidebar when mouse is within 80px of right edge
+      if (e.clientX >= window.innerWidth - 80) {
+        setSidebarOpen(true);
+      } else {
+        // Close sidebar when mouse moves away from right edge
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
 
   return (
-    <nav className="bottom-nav">
+    <nav className={`side-nav ${sidebarOpen ? 'open' : ''}`}>
+      <button className="nav-item-notification">
+        <Bell size={24} />
+        <span className="notification-badge"></span>
+      </button>
       <Link to="/dashboard" className={`nav-item ${location.pathname === '/dashboard' ? 'active' : ''}`}>
         <Compass size={24} />
         <span>Explore</span>
@@ -17,7 +40,7 @@ const BottomNavbar = () => {
         <span>History</span>
       </Link>
       <Link to="/contact" className={`nav-item ${location.pathname === '/contact' ? 'active' : ''}`}>
-        <UserIcon size={24} />
+        <Mail size={24} />
         <span>Contact</span>
       </Link>
       <Link to="/profile" className={`nav-item ${location.pathname === '/profile' ? 'active' : ''}`}>

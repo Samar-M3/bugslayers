@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   Search, 
-  Bell, 
   MapPin, 
   Navigation, 
   Clock, 
   Wallet, 
   User as UserIcon, 
-  History, 
   Compass,
-  Car,
-  Bike,
-  Zap,
-  ChevronRight,
   Menu
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -142,7 +136,6 @@ const Dashboard = () => {
   const handleRequestLocation = startTracking;
 
   const [mapCenter, setMapCenter] = useState([27.7172, 85.3240]); // Default to Kathmandu
-  const [activeCategory, setActiveCategory] = useState('car');
   const [isSheetExpanded, setIsSheetExpanded] = useState(false);
   const [destination, setDestination] = useState(null);
 
@@ -444,17 +437,6 @@ const Dashboard = () => {
                   </Popup>
                 </Marker>
               ))}
-              
-              <button 
-                className="recenter-btn-floating" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (userLocation) setMapCenter([...userLocation]);
-                }}
-                title="Go to my location"
-              >
-                <Navigation size={22} />
-              </button>
             </MapContainer>
           </div>
         )}
@@ -493,18 +475,6 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-        <button className="notification-btn">
-          <Bell size={22} />
-          <span className="notification-badge"></span>
-        </button>
-
-        <button className="header-profile" onClick={() => window.location.href = '/profile'}>
-          <div className="avatar-letter">{avatarLetter}</div>
-          <div className="profile-meta">
-            <div className="profile-name">{user?.name || 'User'}</div>
-            <div className="profile-email">{user?.email || ''}</div>
-          </div>
-        </button>
       </header>
 
       {/* Sidebar for Nearby Parking */}
@@ -515,8 +485,8 @@ const Dashboard = () => {
           <button className="close-sidebar" onClick={() => setSidebarOpen(false)}>×</button>
         </div>
         <div className="sidebar-list">
-          {parkingLots.length === 0 && <div className="empty-note">No nearby lots found.</div>}
-          {parkingLots.map(lot => (
+          {parkingLots.filter(lot => (lot.distance || 999) <= 5).length === 0 && <div className="empty-note">No nearby lots found within 5 km.</div>}
+          {parkingLots.filter(lot => (lot.distance || 999) <= 5).map(lot => (
             <div key={lot._id} className="sidebar-lot">
               <div className="sidebar-lot-left">
                 <img src={`https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80&w=200`} alt={lot.name} />
@@ -533,22 +503,6 @@ const Dashboard = () => {
           ))}
         </div>
       </aside>
-
-      {/* Overlaid Category Tabs */}
-      <div className="category-tabs">
-        <button 
-          className={`tab ${activeCategory === 'car' ? 'active' : ''}`} 
-          onClick={() => setActiveCategory('car')}
-        >
-          <Car size={16} /> Car
-        </button>
-        <button 
-          className={`tab ${activeCategory === 'bike' ? 'active' : ''}`} 
-          onClick={() => setActiveCategory('bike')}
-        >
-          <Bike size={16} /> Bike
-        </button>
-      </div>
 
       {/* Overlaid Active Session Card */}
       {isParked && (
@@ -606,25 +560,21 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Bottom Navigation Bar */}
-      <nav className="bottom-nav">
-        <button className="nav-item active">
-          <Compass size={24} />
-          <span>Explore</span>
-        </button>
-        <button className="nav-item">
-          <History size={24} />
-          <span>History</span>
-        </button>
-        <button className="nav-item">
-          <Wallet size={24} />
-          <span>Payments</span>
-        </button>
-        <button className="nav-item">
-          <UserIcon size={24} />
-          <span>Profile</span>
-        </button>
-      </nav>
+      {/* Bottom Middle Location Button */}
+      <button 
+        className="bottom-location-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (userLocation) {
+            setMapCenter([...userLocation]);
+          } else {
+            handleRequestLocation();
+          }
+        }}
+        title="Go to my location"
+      >
+        <MapPin size={24} fill="currentColor" />
+      </button>
     </div>
   );
 };

@@ -310,8 +310,8 @@ const forgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // 4. Send email with reset link
-    const resetURL = `${req.protocol}://${req.get("host")}/resetPassword/${resetToken}`;
-    const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
+    const resetURL = `http://localhost:3000/reset-password/${resetToken}`;
+    const message = `Forgot your password? Click the link below to reset your password:\n\n${resetURL}\n\nThis link will expire in 10 minutes.\n\nIf you didn't request a password reset, please ignore this email!`;
 
     try {
       await sendEmail({
@@ -340,11 +340,63 @@ const forgotPassword = async (req, res) => {
   }
 };
 
+const resetPassword = async (req, res) => {
+  try {
+    const { resetToken } = req.params;
+    const { password, passwordConfirm } = req.body;
+
+    // 1. Check if passwords match
+    if (password !== passwordConfirm) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    // 2. Verify token and find user
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Token is invalid or has expired",
+      });
+    }
+
+    // 3. Update user password
+    const saltrounds = 10;
+    user.password = bcrypt.hashSync(password, saltrounds);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset successful!",
+    });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 module.exports = {
   signup,
   login,
   getProfile,
   updateProfile,
   forgotPassword,
+  resetPassword,
   upload,
 };

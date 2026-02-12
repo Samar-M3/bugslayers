@@ -119,12 +119,30 @@
 .profile-sections-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 32px;
+  gap: 16px;
 }
 
 @media (min-width: 768px) {
   .profile-sections-grid {
     grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 8px;
+    column-gap: 16px;
+  }
+  
+  .profile-sections-grid .profile-info-section {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  
+  .profile-sections-grid .profile-actions-section:first-of-type {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  
+  .profile-sections-grid .profile-actions-section:last-of-type {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 
@@ -146,20 +164,20 @@
 .info-card {
   background: rgba(30, 41, 59, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 16px;
-  border-radius: 16px;
+  padding: 12px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   backdrop-filter: blur(8px);
 }
 
 .info-icon {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   background: rgba(59, 130, 246, 0.1);
   color: #3b82f6;
-  border-radius: 12px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -171,7 +189,7 @@
 }
 
 .info-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.025em;
@@ -179,7 +197,7 @@
 }
 
 .info-value {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: #f1f5f9;
 }
@@ -195,7 +213,7 @@
   background: rgba(30, 41, 59, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.05);
   padding: 16px;
-  border-radius: 16px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 16px;

@@ -1,34 +1,93 @@
-.bottom-nav {
+.side-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background-color: var(--bg-dark); /* Dark background */
-  display: flex;
-  justify-content: space-around;
-  padding: 10px 0;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3); /* Darker shadow */
-  z-index: 1000;
-}
-
-.bottom-nav .nav-item {
+  right: -80px;
+  top: 0;
+  height: 100vh;
+  width: 70px;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.98),
+    rgba(15, 23, 42, 0.95)
+  );
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: var(--text-muted); /* Muted text color */
+  padding: 60px 0 20px 0;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
+  z-index: 2000;
+  transition: right 0.3s ease;
+  gap: 12px;
+}
+
+.side-nav.open {
+  right: 0;
+}
+
+.side-nav .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 184, 0.7);
   text-decoration: none;
-  font-size: 0.8em;
-  transition: color 0.3s ease;
+  font-size: 0.75em;
+  transition: all 0.3s ease;
+  padding: 12px 8px;
+  border-radius: 10px;
+  gap: 6px;
+  width: 60px;
+  text-align: center;
 }
 
-.bottom-nav .nav-item.active {
-  color: var(--accent-blue); /* Accent blue for active item */
+.side-nav .nav-item-notification {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 184, 0.7);
+  background: none;
+  border: none;
+  font-size: 0.75em;
+  transition: all 0.3s ease;
+  padding: 12px 8px;
+  border-radius: 10px;
+  position: relative;
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
 }
 
-.bottom-nav .nav-item:hover {
-  color: var(--accent-blue);
+.side-nav .nav-item-notification:hover {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
 }
 
-.bottom-nav .nav-item svg {
-  margin-bottom: 4px;
+.notification-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+.side-nav .nav-item.active {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.side-nav .nav-item:hover {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.side-nav .nav-item svg {
+  width: 24px;
+  height: 24px;
+}
+
+.side-nav .nav-item span {
+  font-size: 10px;
+  font-weight: 600;
 }

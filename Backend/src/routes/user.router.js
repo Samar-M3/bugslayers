@@ -5,6 +5,7 @@ const {
   getProfile,
   updateProfile,
   forgotPassword,
+  resetPassword,
   upload,
 } = require("../controller/user.controller");
 const { isauthenticated, Isadmin } = require("../middleware/auth");
@@ -62,6 +63,7 @@ router.get("/dashboard", isauthenticated, Isadmin, (req, res) => {
 
 router.post("/login", login);
 router.post("/signup", signup);
-router.post("/forgotPassword", forgotPassword);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:resetToken", resetPassword);
 
 module.exports = router;

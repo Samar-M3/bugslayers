@@ -11,7 +11,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import GuardEntryScanner from './pages/GuardEntryScanner';
 import GuardExitScanner from './pages/GuardExitScanner';
 import NotFound from './pages/NotFound';
-import ForgotPassword from './pages/ForgotPassword'; // Ensure ForgotPassword is imported
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import './styles/global.css';
 import Profile from './pages/Profile';
 import Contact from './pages/Contact';
@@ -60,7 +61,10 @@ function App() {
             <Route path="/" element={<HomeRedirect />} />
             <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
             <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/forgot-password" element={<PublicLayout><ForgotPassword /></PublicLayout>} />
+            <Route path="/forgot-password" element={<PublicLayout><ForgotPassword /></PublicLayout>} />
+            <Route path="/reset-password/:token" element={<PublicLayout><ResetPassword /></PublicLayout>} />
+
 
             {/* --- Protected Routes (Login Required) --- */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
