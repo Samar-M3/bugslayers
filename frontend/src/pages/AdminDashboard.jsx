@@ -13,9 +13,14 @@ import {
   DollarSign, 
   CreditCard, 
   Plus,
+  Trash2,
+  Pencil,
+  X,
   LogOut,
   ChevronRight,
-  Users
+  Users,
+  Zap,
+  Cpu
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -27,7 +32,100 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import '../styles/AdminDashboard.css';
+
+// Fix for default marker icon in Leaflet with Webpack/Vite
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+const LocationMarker = ({ position, setPosition }) => {
+  const map = useMapEvents({
+    click(e) {
+      setPosition(e.latlng);
+      map.flyTo(e.latlng, map.getZoom());
+    },
+  });
+
+  return position === null ? null : (
+    <Marker position={position} />
+  );
+};
+
+const MapSearch = ({ onLocationSelect }) => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const map = useMap();
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      setResults(data);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const selectLocation = (result) => {
+    const lat = parseFloat(result.lat);
+    const lon = parseFloat(result.lon);
+    const latlng = { lat, lng: lon };
+    onLocationSelect(latlng);
+    map.flyTo(latlng, 15);
+    setResults([]);
+    setQuery(result.display_name);
+  };
+
+  return (
+    <div className="map-search-container" style={{ position: 'absolute', top: '10px', left: '50px', zIndex: 1000, width: '250px' }}>
+      <div style={{ display: 'flex', gap: '5px' }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSearch(e);
+            }
+          }}
+          placeholder="Search location..."
+          style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+        />
+        <button type="button" onClick={handleSearch} disabled={isSearching} style={{ padding: '8px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          {isSearching ? '...' : 'Go'}
+        </button>
+      </div>
+      {results.length > 0 && (
+        <ul style={{ background: 'white', listStyle: 'none', padding: '0', margin: '5px 0 0 0', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
+          {results.map((result) => (
+            <li
+              key={result.place_id}
+              onClick={() => selectLocation(result)}
+              style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: '12px' }}
+            >
+              {result.display_name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -50,6 +148,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAddingLot, setIsAddingLot] = useState(false);
+  const [isEditingLot, setIsEditingLot] = useState(false);
+  const [editingLot, setEditingLot] = useState(null);
   const [newLot, setNewLot] = useState({
     name: '',
     lat: '',
@@ -58,12 +158,57 @@ const AdminDashboard = () => {
     totalSpots: '',
     type: 'both'
   });
+  const [markerPosition, setMarkerPosition] = useState(null);
+  const [isAiScanning, setIsAiScanning] = useState(false);
+
+  const handleAiDetect = async () => {
+    setIsAiScanning(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/admin/ai-detect', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchLots();
+        fetchStats();
+      }
+    } catch (err) {
+      console.error('AI Detection Error:', err);
+      alert('AI Scan failed. Please check backend logs.');
+    } finally {
+      setIsAiScanning(false);
+    }
+  };
+
+  useEffect(() => {
+    if (markerPosition) {
+      setNewLot(prev => ({ ...prev, lat: markerPosition.lat.toString(), lon: markerPosition.lng.toString() }));
+    }
+  }, [markerPosition]);
+
+  useEffect(() => {
+    if (editingLot && !markerPosition) {
+      setMarkerPosition({ lat: parseFloat(editingLot.lat), lng: parseFloat(editingLot.lon) });
+    }
+  }, [editingLot]);
 
   const fetchLots = async () => {
     const token = localStorage.getItem('token');
+    if (!token) return;
+    
     try {
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
       const res = await fetch('http://localhost:8000/api/v1/admin/lots', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers
       });
       const data = await res.json();
       if (res.ok) setAllLots(data);
@@ -75,6 +220,28 @@ const AdminDashboard = () => {
   const handleAddLot = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
+    
+    const lat = parseFloat(newLot.lat);
+    const lon = parseFloat(newLot.lon);
+    const pricePerHour = parseFloat(newLot.pricePerHour);
+    const totalSpots = parseInt(newLot.totalSpots);
+
+    if (isNaN(lat) || isNaN(lon) || isNaN(pricePerHour) || isNaN(totalSpots)) {
+      alert('Please enter valid numbers for coordinates, price, and spots.');
+      return;
+    }
+
+    // Convert string inputs to numbers for the backend
+    const lotData = {
+      ...newLot,
+      lat,
+      lon,
+      pricePerHour,
+      totalSpots
+    };
+
+    console.log('Sending lot data:', lotData);
+
     try {
       const res = await fetch('http://localhost:8000/api/v1/admin/lots', {
         method: 'POST',
@@ -82,20 +249,91 @@ const AdminDashboard = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newLot)
+        body: JSON.stringify(lotData)
       });
+      
+      let data;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { message: text || res.statusText };
+      }
+      
       if (res.ok) {
         setIsAddingLot(false);
         setNewLot({ name: '', lat: '', lon: '', pricePerHour: '', totalSpots: '', type: 'both' });
         fetchLots();
+        alert('Parking lot added successfully!');
+      } else {
+        alert(`Error: ${data.message || 'Failed to add parking lot'}`);
       }
     } catch (err) {
       console.error('Error adding lot:', err);
+      alert(`Network error while adding parking lot: ${err.message}`);
     }
   };
 
-  const handleDeleteLot = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this parking lot?')) return;
+  const handleUpdateLot = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    
+    const lat = parseFloat(editingLot.lat);
+    const lon = parseFloat(editingLot.lon);
+    const pricePerHour = parseFloat(editingLot.pricePerHour);
+    const totalSpots = parseInt(editingLot.totalSpots);
+
+    if (isNaN(lat) || isNaN(lon) || isNaN(pricePerHour) || isNaN(totalSpots)) {
+      alert('Please enter valid numbers for coordinates, price, and spots.');
+      return;
+    }
+
+    const lotData = {
+      ...editingLot,
+      lat,
+      lon,
+      pricePerHour,
+      totalSpots
+    };
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/admin/lots/${editingLot._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(lotData)
+      });
+      
+      let data;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { message: text || res.statusText };
+      }
+      
+      if (res.ok) {
+        setIsEditingLot(false);
+        setEditingLot(null);
+        fetchLots();
+      } else {
+        alert(`Error: ${data.message || 'Failed to update parking lot'}`);
+      }
+    } catch (err) {
+      console.error('Error updating lot:', err);
+      alert(`Network error while updating parking lot: ${err.message}`);
+    }
+  };
+
+  const handleDeleteLot = async (e, id) => {
+    if (e) e.stopPropagation();
+    const confirmed = window.confirm('Are you sure you want to delete this parking lot?');
+    if (!confirmed) return;
+    
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`http://localhost:8000/api/v1/admin/lots/${id}`, {
@@ -111,17 +349,16 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchAdminData = async () => {
       const token = localStorage.getItem('token');
-      // Temporarily bypass token check for development if desired, 
-      // but let's keep it and just ensure the backend doesn't reject.
+      if (!token) {
+        navigate('/login');
+        return;
+      }
 
       try {
         const headers = {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         };
-        
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
 
         const [statsRes, trendsRes, activityRes, lotsRes] = await Promise.all([
           fetch('http://localhost:8000/api/v1/admin/stats', { headers }),
@@ -238,9 +475,47 @@ const AdminDashboard = () => {
           </div>
           <div className="header-actions">
             {activeTab === 'manage-lots' && (
-              <button className="add-lot-btn" onClick={() => setIsAddingLot(true)} style={{ background: '#6366f1', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Plus size={20} /> Add New Lot
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  className="ai-detect-btn" 
+                  onClick={handleAiDetect} 
+                  disabled={isAiScanning}
+                  style={{ 
+                    background: '#10b981', 
+                    color: 'white', 
+                    padding: '10px 20px', 
+                    borderRadius: '8px', 
+                    border: 'none', 
+                    cursor: isAiScanning ? 'not-allowed' : 'pointer', 
+                    fontWeight: '600', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    opacity: isAiScanning ? 0.7 : 1
+                  }}
+                >
+                  <Cpu size={20} className={isAiScanning ? 'animate-pulse' : ''} /> 
+                  {isAiScanning ? 'Scanning Nepal...' : 'AI Detect Nepal Parking'}
+                </button>
+                <button 
+                  className="add-lot-btn" 
+                  onClick={() => setIsAddingLot(true)} 
+                  style={{ 
+                    background: '#6366f1', 
+                    color: 'white', 
+                    padding: '10px 20px', 
+                    borderRadius: '8px', 
+                    border: 'none', 
+                    cursor: 'pointer', 
+                    fontWeight: '600', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px' 
+                  }}
+                >
+                  <Plus size={20} /> Add New Lot
+                </button>
+              </div>
             )}
             <button className="notif-btn">
               <Bell size={24} />
@@ -368,15 +643,37 @@ const AdminDashboard = () => {
           </>
         ) : activeTab === 'manage-lots' ? (
           <section className="manage-lots-section" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#1e293b' }}>Manage Parking Lots</h2>
+                <p style={{ color: '#64748b' }}>Create, update or remove parking locations</p>
+              </div>
+              <button 
+                onClick={() => setIsAddingLot(true)}
+                style={{ background: '#6366f1', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}
+              >
+                <Plus size={20} /> Add New Lot
+              </button>
+            </div>
             {isAddingLot && (
               <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-                <div className="modal-content" style={{ background: 'white', padding: '30px', borderRadius: '12px', width: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+                <div className="modal-content" style={{ background: 'white', padding: '30px', borderRadius: '12px', width: '600px', maxWidth: '95vw', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
                   <h3 style={{ marginBottom: '20px' }}>Add New Parking Lot</h3>
                   <form onSubmit={handleAddLot} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <input type="text" placeholder="Lot Name" required value={newLot.name} onChange={e => setNewLot({...newLot, name: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                    
+                    <div style={{ height: '300px', width: '100%', borderRadius: '8px', overflow: 'hidden', position: 'relative', border: '1px solid #e2e8f0' }}>
+                      <MapContainer center={[27.7172, 85.3240]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <MapSearch onLocationSelect={setMarkerPosition} />
+                        <LocationMarker position={markerPosition} setPosition={setMarkerPosition} />
+                      </MapContainer>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Click on the map or search to set location</p>
+                    
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <input type="number" step="any" placeholder="Latitude" required value={newLot.lat} onChange={e => setNewLot({...newLot, lat: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1 }} />
-                      <input type="number" step="any" placeholder="Longitude" required value={newLot.lon} onChange={e => setNewLot({...newLot, lon: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1 }} />
+                      <input type="number" step="any" placeholder="Latitude" required value={newLot.lat} readOnly style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1, background: '#f8fafc' }} />
+                      <input type="number" step="any" placeholder="Longitude" required value={newLot.lon} readOnly style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1, background: '#f8fafc' }} />
                     </div>
                     <input type="number" placeholder="Price Per Hour (NPR)" required value={newLot.pricePerHour} onChange={e => setNewLot({...newLot, pricePerHour: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
                     <input type="number" placeholder="Total Spots" required value={newLot.totalSpots} onChange={e => setNewLot({...newLot, totalSpots: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
@@ -387,7 +684,49 @@ const AdminDashboard = () => {
                     </select>
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                       <button type="submit" style={{ flex: 1, background: '#6366f1', color: 'white', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Save Lot</button>
-                      <button type="button" onClick={() => setIsAddingLot(false)} style={{ flex: 1, background: '#f1f5f9', color: '#475569', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Cancel</button>
+                      <button type="button" onClick={() => { setIsAddingLot(false); setMarkerPosition(null); }} style={{ flex: 1, background: '#f1f5f9', color: '#475569', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {isEditingLot && editingLot && (
+              <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                <div className="modal-content" style={{ background: 'white', padding: '30px', borderRadius: '12px', width: '600px', maxWidth: '95vw', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <h3 style={{ marginBottom: '20px' }}>Edit Parking Lot</h3>
+                  <form onSubmit={handleUpdateLot} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <input type="text" placeholder="Lot Name" required value={editingLot.name} onChange={e => setEditingLot({...editingLot, name: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                    
+                    <div style={{ height: '300px', width: '100%', borderRadius: '8px', overflow: 'hidden', position: 'relative', border: '1px solid #e2e8f0' }}>
+                      <MapContainer center={[parseFloat(editingLot.lat) || 27.7172, parseFloat(editingLot.lon) || 85.3240]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <MapSearch onLocationSelect={(pos) => {
+                          setMarkerPosition(pos);
+                          setEditingLot(prev => ({ ...prev, lat: pos.lat.toString(), lon: pos.lng.toString() }));
+                        }} />
+                        <LocationMarker position={markerPosition} setPosition={(pos) => {
+                          setMarkerPosition(pos);
+                          setEditingLot(prev => ({ ...prev, lat: pos.lat.toString(), lon: pos.lng.toString() }));
+                        }} />
+                      </MapContainer>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Click on the map or search to set location</p>
+
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input type="number" step="any" placeholder="Latitude" required value={editingLot.lat} readOnly style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1, background: '#f8fafc' }} />
+                      <input type="number" step="any" placeholder="Longitude" required value={editingLot.lon} readOnly style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: 1, background: '#f8fafc' }} />
+                    </div>
+                    <input type="number" placeholder="Price Per Hour (NPR)" required value={editingLot.pricePerHour} onChange={e => setEditingLot({...editingLot, pricePerHour: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                    <input type="number" placeholder="Total Spots" required value={editingLot.totalSpots} onChange={e => setEditingLot({...editingLot, totalSpots: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                    <select value={editingLot.type} onChange={e => setEditingLot({...editingLot, type: e.target.value})} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <option value="car">Car Only</option>
+                      <option value="bike">Bike Only</option>
+                      <option value="both">Both</option>
+                    </select>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                      <button type="submit" style={{ flex: 1, background: '#6366f1', color: 'white', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Update Lot</button>
+                      <button type="button" onClick={() => { setIsEditingLot(false); setEditingLot(null); setMarkerPosition(null); }} style={{ flex: 1, background: '#f1f5f9', color: '#475569', padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>Cancel</button>
                     </div>
                   </form>
                 </div>
@@ -402,9 +741,14 @@ const AdminDashboard = () => {
                       <h4 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>{lot.name}</h4>
                       <p style={{ fontSize: '0.875rem', color: '#64748b' }}>{lot.type.toUpperCase()} • {lot.totalSpots} Spots</p>
                     </div>
-                    <button onClick={() => handleDeleteLot(lot._id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}>
-                      <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => { setEditingLot(lot); setIsEditingLot(true); }} style={{ color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}>
+                        <Pencil size={18} />
+                      </button>
+                      <button onClick={(e) => handleDeleteLot(e, lot._id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}>
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: '600', color: '#6366f1' }}>NPR {lot.pricePerHour}/hr</span>

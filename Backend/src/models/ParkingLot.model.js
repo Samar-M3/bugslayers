@@ -42,13 +42,12 @@ const parkingLotSchema = new mongoose.Schema(
 );
 
 // Pre-save hook to update status based on occupancy
-parkingLotSchema.pre("save", function (next) {
+parkingLotSchema.pre("save", function () {
   if (this.occupiedSpots >= this.totalSpots) {
     this.status = "full";
   } else {
     this.status = "available";
   }
-  next();
 });
 
 const ParkingLot = mongoose.model("ParkingLot", parkingLotSchema);

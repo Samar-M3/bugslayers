@@ -7,13 +7,14 @@ const {
   addParkingLot,
   deleteParkingLot,
   updateParkingLot,
+  aiDetectParking,
 } = require("../controller/admin.controller");
 const { isauthenticated, Isadmin } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Publicly accessible for now to fix 401/403 errors during development
-// router.use(isauthenticated);
+// All admin routes should be protected
+router.use(isauthenticated);
 // router.use(Isadmin);
 
 router.get("/stats", getDashboardStats);
@@ -25,5 +26,6 @@ router.get("/lots", getAllLots);
 router.post("/lots", addParkingLot);
 router.delete("/lots/:id", deleteParkingLot);
 router.put("/lots/:id", updateParkingLot);
+router.post("/ai-detect", aiDetectParking);
 
 module.exports = router;

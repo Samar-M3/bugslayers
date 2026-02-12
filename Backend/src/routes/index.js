@@ -24,8 +24,13 @@ const routers = [
     },
   },
 ];
-routers.map((route) => {
-  router.use(route.path, route.route);
-});
+
+const testRouter = express.Router();
+testRouter.get("/", (req, res) => res.send("test route"));
+
+router.use("/users", userRouter);
+router.use("/parking", parkingRouter);
+router.use("/admin", adminRouter);
+router.use("/test", testRouter);
 
 module.exports = router;
