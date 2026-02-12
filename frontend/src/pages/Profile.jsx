@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { QRCodeCanvas } from "qrcode.react";
 import { Camera, Mail, Lock, LogOut, ChevronRight, User as UserIcon, Download, X, QrCode } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 import '../styles/Profile.css';
 
 /**
@@ -10,6 +11,11 @@ import '../styles/Profile.css';
  * Manages user personal information, profile photo, and unique QR code generation.
  */
 function Profile() {
+  const { showToast } = useToast();
+  const formatRoleLabel = (role) => {
+    const normalized = role === 'driver' ? 'user' : (role || 'user');
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
   // --- Profile State ---
   const [user, setUser] = useState(null); // Complete user object from backend
   const [selectedFile, setSelectedFile] = useState(null); // For profile picture uploads
@@ -165,11 +171,11 @@ function Profile() {
           setQrId(response.data.data._id);
           setShowQRModal(true);
         } else {
-          alert('Failed to generate QR code');
+          showToast('Failed to generate QR code.', 'error');
         }
       } catch (err) {
         console.error('Error generating QR code:', err);
-        alert('Failed to generate QR code. Please try again.');
+        showToast('Failed to generate QR code. Please try again.', 'error');
       } finally {
         setLoading(false);
       }
@@ -271,7 +277,7 @@ function Profile() {
               ? `${user.firstName} ${user.lastName}`
               : user?.username || 'User'}
           </h1>
-          <p className="user-role">{user?.role || 'Member'}</p>
+          <p className="user-role">{formatRoleLabel(user?.role)}</p>
         </div>
 
         <div className="profile-sections-grid">

@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }) => {
   const getDefaultRouteForRole = (role) => {
     if (role === 'superadmin') return '/admin';
     if (role === 'guard') return '/guard';
+    if (role === 'driver') return '/dashboard'; // legacy role fallback
     return '/dashboard';
   };
 

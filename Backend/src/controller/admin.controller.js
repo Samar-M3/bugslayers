@@ -15,7 +15,7 @@ exports.getDashboardStats = async (req, res, next) => {
       status: "active",
     });
     const totalLots = await ParkingLot.countDocuments();
-    const totalUsers = await User.countDocuments({ role: "driver" });
+    const totalUsers = await User.countDocuments({ role: { $in: ["user", "driver"] } });
 
     // Calculate occupancy rate
     const lots = await ParkingLot.find();

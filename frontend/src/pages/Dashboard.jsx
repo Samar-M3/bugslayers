@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLocationContext } from '../context/LocationContext';
+import { useToast } from '../context/ToastContext';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
@@ -281,6 +283,8 @@ const RoutingMachine = ({ userLoc, destinationLoc }) => {
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   // --- State Management ---
   const [isParked, setIsParked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -298,6 +302,24 @@ const Dashboard = () => {
   const [mapCenter, setMapCenter] = useState([27.7172, 85.3240]); // Default to Kathmandu
   const [isSheetExpanded, setIsSheetExpanded] = useState(false);
   const [destination, setDestination] = useState(null);
+  const [selectedDirectionLot, setSelectedDirectionLot] = useState(null);
+  const getAvailableSlots = (lot) => Math.max(0, (lot.totalSpots || 0) - (lot.occupiedSpots || 0));
+  const getOccupancyPercent = (lot) => {
+    if (!lot.totalSpots) return 0;
+    return Math.min(100, Math.round(((lot.occupiedSpots || 0) / lot.totalSpots) * 100));
+  };
+  const getLotDistanceKm = (lot) => {
+    if (!lot) return null;
+    if (typeof lot.distance === 'number') return lot.distance;
+    if (!userLocation) return null;
+    return calculateDistance(userLocation[0], userLocation[1], lot.lat, lot.lon);
+  };
+  const getEstimatedDriveMinutes = (lot) => {
+    const distanceKm = getLotDistanceKm(lot);
+    if (!distanceKm) return null;
+    const avgCitySpeedKmH = 22;
+    return Math.max(2, Math.round((distanceKm / avgCitySpeedKmH) * 60));
+  };
 
   // --- Logic: Fetch Data from Backend ---
   const fetchData = async (lat, lon) => {
@@ -345,6 +367,16 @@ const Dashboard = () => {
     fetchData();
    }, []);
 
+  // Live occupancy updates for nearby parking cards
+  useEffect(() => {
+    const timer = setInterval(() => {
+      fetchData(userLocation?.[0], userLocation?.[1]);
+    }, 12000);
+
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLocation]);
+
   // --- Logic: Search Location (OpenStreetMap Nominatim API) ---
   const handleSearch = async (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
@@ -361,10 +393,11 @@ const Dashboard = () => {
           // Fetch nearby lots for the searched location
           fetchData(newLat, newLon);
         } else {
-          alert('Location not found in Nepal. Please try again.');
+          showToast('Location not found in Nepal. Please try again.', 'warning');
         }
       } catch (error) {
         console.error('Search error:', error);
+        showToast('Search failed. Please try again.', 'error');
       }
     }
   };
@@ -440,60 +473,6 @@ const Dashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLocation]);
 
-  // Booking modal state
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [selectedLot, setSelectedLot] = useState(null);
-  const [slotsCount, setSlotsCount] = useState(1);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [bookingLoading, setBookingLoading] = useState(false);
-
-  const openBooking = (lot) => {
-    setSelectedLot(lot);
-    setSlotsCount(1);
-    setStartTime('');
-    setEndTime('');
-    setBookingOpen(true);
-  };
-
-  const submitBooking = async () => {
-    if (!selectedLot) return;
-    if (!startTime || !endTime) return alert('Please enter start and end time.');
-    try {
-      setBookingLoading(true);
-      const token = localStorage.getItem('token');
-      const payload = {
-        parkingLotId: selectedLot._id,
-        slots: Number(slotsCount),
-        startTime: new Date(startTime).toISOString(),
-        endTime: new Date(endTime).toISOString()
-      };
-
-      const res = await fetch('http://localhost:8000/api/v1/parking/book', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        alert('Booking successful!');
-        setBookingOpen(false);
-        // Refresh lots to update occupancy
-        fetchData(userLocation?.[0], userLocation?.[1]);
-      } else {
-        alert(data.message || 'Booking failed.');
-      }
-    } catch (err) {
-      console.error('Booking error', err);
-      alert('Booking failed.');
-    } finally {
-      setBookingLoading(false);
-    }
-  };
-
   // --- Logic: Live Parking Timer & Fee ---
   useEffect(() => {
     if (!isParked || !activeSession) return;
@@ -535,6 +514,7 @@ const Dashboard = () => {
         ) : (
           <div className="map-wrapper">
             <MapContainer 
+              className={selectedDirectionLot ? 'map-with-direction-panel' : ''}
               center={mapCenter} 
               zoom={15} 
               style={{ height: '100%', width: '100%' }}
@@ -589,7 +569,11 @@ const Dashboard = () => {
 
                       <button 
                         className="get-directions-btn"
-                        onClick={() => setDestination([lot.lat, lot.lon])}
+                        onClick={() => {
+                          setDestination([lot.lat, lot.lon]);
+                          setSelectedDirectionLot(lot);
+                          setSidebarOpen(false);
+                        }}
                       >
                         Get Directions
                       </button>
@@ -641,8 +625,11 @@ const Dashboard = () => {
       <div className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`} onClick={() => setSidebarOpen(false)} />
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h3>Nearby Parking</h3>
-          <button className="close-sidebar" onClick={() => setSidebarOpen(false)}>×</button>
+          <div>
+            <h3>Nearby Parking</h3>
+            <p className="sidebar-live-label">Live slots update every 12s</p>
+          </div>
+          <button className="close-sidebar" onClick={() => setSidebarOpen(false)}>X</button>
         </div>
         <div className="sidebar-list">
           {parkingLots.filter(lot => (lot.distance || 999) <= 5).length === 0 && <div className="empty-note">No nearby lots found within 5 km.</div>}
@@ -653,16 +640,83 @@ const Dashboard = () => {
               </div>
               <div className="sidebar-lot-right">
                 <div className="lot-title">{lot.name}</div>
-                <div className="lot-sub">{lot.distance ? `${lot.distance.toFixed(2)} km` : 'Nearby'} • NPR {lot.pricePerHour}/hr</div>
-                <div style={{marginTop:8, display:'flex', gap:8}}>
-                  <button className={`book-btn ${lot.status}`} disabled={lot.status === 'full'} onClick={() => openBooking(lot)}>{lot.status === 'full' ? 'Sold Out' : 'Book'}</button>
-                  <button className="directions-btn-outline" onClick={() => { setSidebarOpen(false); setMapCenter([lot.lat, lot.lon]); setDestination([lot.lat, lot.lon]); startTracking(); }} title="Show Path"> <Navigation size={16} /> </button>
+                <div className="lot-sub">{lot.distance ? `${lot.distance.toFixed(2)} km` : 'Nearby'} - NPR {lot.pricePerHour}/hr</div>
+                <div className="lot-live-meta">
+                  <span className={`slots-pill ${lot.status === 'full' ? 'full' : 'available'}`}>
+                    {getAvailableSlots(lot)} slots live
+                  </span>
+                  <span className="occupancy-mini">{getOccupancyPercent(lot)}% occupied</span>
+                </div>
+                <div className="lot-actions">
+                  <button
+                    className="lot-detail-btn"
+                    onClick={() => navigate(`/parking/lot/${lot._id}`, { state: { lot, distance: lot.distance } })}
+                  >
+                    View Details
+                  </button>
+                  <button
+                    className={`book-btn ${lot.status}`}
+                    disabled={lot.status === 'full'}
+                    onClick={() => navigate(`/parking/lot/${lot._id}`, { state: { lot, distance: lot.distance } })}
+                  >
+                    {lot.status === 'full' ? 'Sold Out' : 'Book Now'}
+                  </button>
+                  <button className="directions-btn-outline" onClick={() => { setSidebarOpen(false); setMapCenter([lot.lat, lot.lon]); setDestination([lot.lat, lot.lon]); setSelectedDirectionLot(lot); startTracking(); }} title="Show Path"> <Navigation size={16} /> </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </aside>
+
+      {selectedDirectionLot && (
+        <aside className="direction-details-panel">
+          <div className="direction-panel-head">
+            <h3>Direction Details</h3>
+            <button className="close-sidebar" onClick={() => setSelectedDirectionLot(null)}>X</button>
+          </div>
+
+          <div className="direction-panel-card">
+            <h4>{selectedDirectionLot.name}</h4>
+            <p>{getLotDistanceKm(selectedDirectionLot) ? `${getLotDistanceKm(selectedDirectionLot).toFixed(2)} km away` : 'Distance unavailable'}</p>
+
+            <div className="direction-panel-grid">
+              <div>
+                <span>Estimated Drive</span>
+                <strong>{getEstimatedDriveMinutes(selectedDirectionLot) ? `${getEstimatedDriveMinutes(selectedDirectionLot)} min` : 'N/A'}</strong>
+              </div>
+              <div>
+                <span>Live Slots</span>
+                <strong>{getAvailableSlots(selectedDirectionLot)}</strong>
+              </div>
+              <div>
+                <span>Occupancy</span>
+                <strong>{getOccupancyPercent(selectedDirectionLot)}%</strong>
+              </div>
+              <div>
+                <span>Rate</span>
+                <strong>NPR {selectedDirectionLot.pricePerHour}/hr</strong>
+              </div>
+            </div>
+
+            <div className="direction-panel-actions">
+              <button
+                className="lot-detail-btn"
+                onClick={() => navigate(`/parking/lot/${selectedDirectionLot._id}`, { state: { lot: selectedDirectionLot, distance: getLotDistanceKm(selectedDirectionLot) } })}
+              >
+                View Details
+              </button>
+              <button
+                className={`book-btn ${selectedDirectionLot.status}`}
+                disabled={selectedDirectionLot.status === 'full'}
+                onClick={() => navigate(`/parking/lot/${selectedDirectionLot._id}`, { state: { lot: selectedDirectionLot, distance: getLotDistanceKm(selectedDirectionLot) } })}
+              >
+                {selectedDirectionLot.status === 'full' ? 'Sold Out' : 'Book Now'}
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
 
       {/* Overlaid Active Session Card */}
       {isParked && (
@@ -695,31 +749,6 @@ const Dashboard = () => {
 
       {/* Bottom discovery sheet removed — Nearby Parking is now in the sidebar */}
 
-      {/* Booking Modal */}
-      {bookingOpen && selectedLot && (
-        <div className="modal-backdrop" onClick={() => setBookingOpen(false)}>
-          <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Book: {selectedLot.name}</h3>
-            <div className="booking-row">
-              <label>Slots</label>
-              <input type="number" min={1} max={Math.max(1, selectedLot.totalSpots - (selectedLot.occupiedSpots||0))} value={slotsCount} onChange={(e) => setSlotsCount(e.target.value)} />
-            </div>
-            <div className="booking-row">
-              <label>Start</label>
-              <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-            </div>
-            <div className="booking-row">
-              <label>End</label>
-              <input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-            </div>
-            <div className="booking-actions">
-              <button className="btn secondary" onClick={() => setBookingOpen(false)}>Cancel</button>
-              <button className="btn primary" onClick={submitBooking} disabled={bookingLoading}>{bookingLoading ? 'Booking...' : 'Confirm Booking'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Bottom Middle Location Button */}
       <button 
         className="bottom-location-btn"
@@ -740,3 +769,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

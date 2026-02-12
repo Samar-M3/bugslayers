@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LocationProvider } from './context/LocationContext';
+import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomeRedirect from './components/HomeRedirect';
 import Login from './pages/Login';
@@ -18,6 +19,7 @@ import './styles/global.css';
 import Profile from './pages/Profile';
 import Contact from './pages/Contact';
 import BookingHistory from './pages/BookingHistory';
+import ParkingLotDetail from './pages/ParkingLotDetail';
 import PublicLayout from './components/PublicLayout';
 import BottomNavbar from './components/BottomNavbar';
 
@@ -31,7 +33,7 @@ const Layout = ({ children }) => {
     return <div>Loading application...</div>;
   }
 
-  const showBottomNavbar = user && user.role === 'driver' && !isAdminRoute && !isGuardRoute;
+  const showBottomNavbar = user && (user.role === 'user' || user.role === 'driver') && !isAdminRoute && !isGuardRoute;
 
   return (
     <div className="app">
@@ -45,30 +47,33 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <LocationProvider>
-          <Layout>
-            <Routes>
+        <ToastProvider>
+          <LocationProvider>
+            <Layout>
+              <Routes>
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
               <Route path="/register" element={<PublicLayout><Register /></PublicLayout>} />
               <Route path="/forgot-password" element={<PublicLayout><ForgotPassword /></PublicLayout>} />
               <Route path="/reset-password/:token" element={<PublicLayout><ResetPassword /></PublicLayout>} />
 
-              <Route path="/dashboard" element={<ProtectedRoute roles={['driver']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute roles={['user', 'driver']}><Dashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute roles={['superadmin']}><AdminDashboard /></ProtectedRoute>} />
 
               <Route path="/guard" element={<ProtectedRoute roles={['guard']}><GuardDashboard /></ProtectedRoute>} />
               <Route path="/guard/entry" element={<ProtectedRoute roles={['guard']}><GuardEntryScanner /></ProtectedRoute>} />
               <Route path="/guard/exit" element={<ProtectedRoute roles={['guard']}><GuardExitScanner /></ProtectedRoute>} />
 
-              <Route path="/profile" element={<ProtectedRoute roles={['driver']}><Profile /></ProtectedRoute>} />
-              <Route path="/contact" element={<ProtectedRoute roles={['driver']}><Contact /></ProtectedRoute>} />
-              <Route path="/history" element={<ProtectedRoute roles={['driver']}><BookingHistory /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute roles={['user', 'driver']}><Profile /></ProtectedRoute>} />
+              <Route path="/contact" element={<ProtectedRoute roles={['user', 'driver']}><Contact /></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute roles={['user', 'driver']}><BookingHistory /></ProtectedRoute>} />
+              <Route path="/parking/lot/:lotId" element={<ProtectedRoute roles={['user', 'driver']}><ParkingLotDetail /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
-        </LocationProvider>
+              </Routes>
+            </Layout>
+          </LocationProvider>
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );

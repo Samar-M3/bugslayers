@@ -1,5 +1,6 @@
 .login-page {
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   width: 100%;
   display: flex;
   justify-content: center;
@@ -9,14 +10,17 @@
     url("https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80&w=2070");
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
+  background-attachment: scroll;
   font-family:
     "Inter",
     "Segoe UI",
     system-ui,
     -apple-system,
     sans-serif;
-  padding: 20px;
+  padding: 14px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 .login-card {
@@ -122,7 +126,7 @@
 
 .input-group input {
   width: 100%;
-  padding: 14px 18px 14px 52px;
+  padding: 14px 48px 14px 52px;
   border: 1.5px solid rgba(226, 232, 240, 0.8);
   border-radius: 14px;
   font-size: 16px;
@@ -147,6 +151,28 @@
   right: 18px;
   color: #64748b;
   pointer-events: none;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.password-toggle:hover {
+  color: #2563eb;
+}
+
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .form-options {
@@ -233,7 +259,7 @@
 /* Responsive Styles */
 @media (max-width: 640px) {
   .login-page {
-    padding: 15px;
+    padding: 10px;
   }
 
   .login-card {
@@ -242,11 +268,11 @@
   }
 
   .login-body {
-    padding: 35px 25px;
+    padding: 24px 20px;
   }
 
   .login-header {
-    padding: 25px 15px;
+    padding: 18px 15px;
   }
 
   .login-header h1 {

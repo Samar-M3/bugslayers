@@ -1,15 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Car, 
-  MapPin, 
-  ShieldCheck, 
-  Wallet, 
-  ChevronRight, 
-  Menu, 
-  CheckCircle2,
-  Smartphone,
-  Navigation
+import {
+  MapPin,
+  ShieldCheck,
+  Wallet,
+  ChevronRight,
+  Navigation,
 } from 'lucide-react';
 import '../styles/LandingPage.css';
 
@@ -18,31 +14,19 @@ const LandingPage = () => {
 
   return (
     <div className="landing-container">
-      {/* Glassmorphic Header */}
       <nav className="glass-nav">
         <div className="nav-content">
           <div className="logo">
             <div className="logo-icon">P</div>
-            <span>ParkME</span>
-          </div>
-          
-          <div className="nav-links">
-            <a href="#features">Features</a>
-            <a href="#about">About</a>
-            <a href="#pricing">Pricing</a>
+            <span>ParkFasto</span>
           </div>
 
           <button className="glass-btn sign-in" onClick={() => navigate('/login')}>
-            Sign In
-          </button>
-          
-          <button className="mobile-menu-btn">
-            <Menu size={24} />
+            Login
           </button>
         </div>
       </nav>
 
-      {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-content">
           <div className="hero-text">
@@ -51,9 +35,11 @@ const LandingPage = () => {
               <span className="accent-text">Start Parking.</span>
             </h1>
             <p className="hero-subheadline">
-              Nepal's first real-time parking ecosystem. Find a spot in seconds or manage your lot with 100% transparency.
+              The future of parking in Nepal.
+              <br />
+              Book instantly, arrive confidently, and manage every space with full transparency.
             </p>
-            
+
             <div className="hero-ctas">
               <button className="primary-cta" onClick={() => navigate('/dashboard')}>
                 Find a Spot <ChevronRight size={20} />
@@ -82,7 +68,6 @@ const LandingPage = () => {
                   </div>
                 </div>
                 <div className="mockup-map">
-                  {/* Visual representation of a map */}
                   <div className="map-marker available" style={{ top: '30%', left: '40%' }}></div>
                   <div className="map-marker full" style={{ top: '50%', left: '60%' }}></div>
                   <div className="map-marker available" style={{ top: '70%', left: '30%' }}></div>
@@ -93,7 +78,7 @@ const LandingPage = () => {
                     <div className="lot-img"></div>
                     <div className="lot-info">
                       <div className="lot-name">Civil Mall Parking</div>
-                      <div className="lot-status">Available • 45 spots</div>
+                      <div className="lot-status">Available - 45 spots</div>
                     </div>
                   </div>
                 </div>
@@ -104,11 +89,10 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Why Us? Section */}
-      <section id="features" className="features-section">
+      <section id="about" className="features-section">
         <div className="section-header-centered">
-          <h2>End the Parking Crisis in Kathmandu</h2>
-          <p>Modern solutions built for Nepal's urban spaces</p>
+          <h2>About ParkFasto</h2>
+          <p>Built to make parking faster, fairer, and fully transparent in Nepal.</p>
         </div>
 
         <div className="features-grid">
@@ -133,19 +117,18 @@ const LandingPage = () => {
               <Wallet className="feature-icon" size={32} />
             </div>
             <h3>Digital Payments</h3>
-            <p>Integrated with eSewa, Khalti, and Fonepay—no "khuchra" (change) needed. Pay with a single scan.</p>
+            <p>Integrated with eSewa, Khalti, and Fonepay; no exact change needed. Pay with a single scan.</p>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="landing-footer">
         <div className="footer-content">
           <div className="footer-logo">
             <div className="logo-icon">P</div>
-            <span>ParkME</span>
+            <span>ParkFasto</span>
           </div>
-          <p>© 2024 ParkME. Built for a Smarter Kathmandu.</p>
+          <p>© 2024 ParkFasto. Built for a Smarter Kathmandu.</p>
         </div>
       </footer>
     </div>

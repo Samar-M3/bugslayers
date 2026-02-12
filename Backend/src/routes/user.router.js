@@ -6,6 +6,8 @@ const {
   updateProfile,
   forgotPassword,
   resetPassword,
+  getNotifications,
+  markAllNotificationsRead,
   upload,
 } = require("../controller/user.controller");
 const { isauthenticated, Isadmin } = require("../middleware/auth");
@@ -22,6 +24,8 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/profile", isauthenticated, getProfile);
+router.get("/notifications", isauthenticated, getNotifications);
+router.patch("/notifications/read-all", isauthenticated, markAllNotificationsRead);
 
 router.patch("/profile", isauthenticated, upload.single("photo"), updateProfile);
 

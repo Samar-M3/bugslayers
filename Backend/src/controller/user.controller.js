@@ -7,6 +7,7 @@ const cloudinary = require("cloudinary").v2;
 const multer = require("multer");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const Notification = require("../models/Notification.model");
 
 // Configure Cloudinary
 cloudinary.config({
@@ -49,8 +50,8 @@ const signupSchema = Joi.object({
     "string.empty": "Password is required",
   }),
 
-  role: Joi.string().valid("driver").default("driver").messages({
-    "any.only": "Role must be driver",
+  role: Joi.string().valid("user").default("user").messages({
+    "any.only": "Role must be user",
   }),
 });
 
@@ -181,7 +182,7 @@ const signup = async (req, res) => {
       `${value.firstName.toLowerCase()}_${value.lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
 
     // Create user
-    const user = await User.create({ ...value, username, role: "driver", password: hash });
+    const user = await User.create({ ...value, username, role: "user", password: hash });
 
     // Create token payload (without password)
     const userObject = user.toObject();
@@ -391,6 +392,51 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const getNotifications = async (req, res) => {
+  try {
+    const notifications = await Notification.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(30);
+
+    const unreadCount = await Notification.countDocuments({
+      user: req.user._id,
+      isRead: false,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: notifications,
+      unreadCount,
+    });
+  } catch (err) {
+    console.error("Get notifications error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch notifications",
+    });
+  }
+};
+
+const markAllNotificationsRead = async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { user: req.user._id, isRead: false },
+      { $set: { isRead: true } },
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "All notifications marked as read",
+    });
+  } catch (err) {
+    console.error("Mark notifications read error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update notifications",
+    });
+  }
+};
+
 module.exports = {
   signup,
   login,
@@ -398,5 +444,7 @@ module.exports = {
   updateProfile,
   forgotPassword,
   resetPassword,
+  getNotifications,
+  markAllNotificationsRead,
   upload,
 };

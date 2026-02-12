@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, MapPin } from 'lucide-react';
+import { User, Mail, Lock, MapPin, Eye, EyeOff } from 'lucide-react';
 import '../styles/Register.css';
 
 const Register = () => {
@@ -14,6 +14,8 @@ const Register = () => {
   });
   const [loading, setLoading] = useState(false); // Tracks API request status
   const [error, setError] = useState('');       // Stores error messages for display
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
   // --- Event Handlers ---
@@ -144,7 +146,7 @@ const Register = () => {
                 <Lock size={20} />
               </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 name="password"
                 placeholder="Password"
                 value={formData.password}
@@ -152,6 +154,16 @@ const Register = () => {
                 required
                 disabled={loading}
               />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                disabled={loading}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
 
             {/* Confirm Password Input */}
@@ -160,7 +172,7 @@ const Register = () => {
                 <Lock size={20} />
               </div>
               <input
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 name="confirmPassword"
                 placeholder="Confirm Password"
                 value={formData.confirmPassword}
@@ -168,6 +180,16 @@ const Register = () => {
                 required
                 disabled={loading}
               />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                title={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                disabled={loading}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
 
             {/* Submit Button: Changes state based on loading */}

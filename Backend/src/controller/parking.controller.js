@@ -1,5 +1,6 @@
 const ParkingLot = require("../models/ParkingLot.model");
 const ParkingSession = require("../models/ParkingSession.model");
+const Notification = require("../models/Notification.model");
 
 /**
  * User Bookings Controller
@@ -82,6 +83,7 @@ exports.getActiveSession = async (req, res, next) => {
 exports.guardEntry = async (req, res, next) => {
   try {
     const { userId, parkingLotId } = req.body;
+    const lot = await ParkingLot.findById(parkingLotId).select("name");
 
     // Find the latest booking for this user at this parking lot
     let session = await ParkingSession.findOne({
@@ -108,6 +110,17 @@ exports.guardEntry = async (req, res, next) => {
       await session.save();
       // Occupancy was already incremented during booking
     }
+
+    await Notification.create({
+      user: userId,
+      type: "checkin",
+      title: "Check-in Successful",
+      message: `Your vehicle check-in was recorded at ${lot?.name || "the parking lot"}.`,
+      metadata: {
+        parkingLot: parkingLotId,
+        session: session._id,
+      },
+    });
 
     res.status(200).json({ success: true, message: "Entry successful", data: session });
   } catch (error) {
@@ -154,6 +167,17 @@ exports.guardExit = async (req, res, next) => {
     if (updatedLot && updatedLot.occupiedSpots < updatedLot.totalSpots) {
       await ParkingLot.findByIdAndUpdate(parkingLotId, { status: "available" });
     }
+
+    await Notification.create({
+      user: userId,
+      type: "checkout",
+      title: "Check-out Successful",
+      message: `Your parking session was completed at ${session.parkingLot?.name || "the parking lot"}. Total: NPR ${totalAmount}.`,
+      metadata: {
+        parkingLot: parkingLotId,
+        session: session._id,
+      },
+    });
 
     res.status(200).json({ success: true, message: "Exit successful", data: session });
   } catch (error) {

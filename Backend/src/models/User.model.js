@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const ObjectId = mongoose.Schema.Types.ObjectId;
 /**
  * User Model
- * Defines the schema for application users, including drivers and admins.
+ * Defines the schema for application users, including users and admins.
  */
 const userSchema = new mongoose.Schema({
   firstName: {
@@ -31,8 +31,8 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["driver", "guard", "superadmin"], // Restricts roles to valid system types
-    default: "driver",
+    enum: ["user", "driver", "guard", "superadmin"], // Includes legacy 'driver' for compatibility
+    default: "user",
   },
   photo: {
     type: String, // Cloudinary URL or local path for profile picture

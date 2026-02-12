@@ -33,6 +33,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import '../styles/AdminDashboard.css';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 // Fix Leaflet marker icon issues
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -48,6 +49,7 @@ L.Icon.Default.mergeOptions({
 
 const AdminDashboard = () => {
   const { user } = useAuth();
+  const { showToast, confirmAction } = useToast();
   const navigate = useNavigate();
   // Dashboard State Management
   const [activeTab, setActiveTab] = useState('dashboard'); // Tracks which sidebar tab is active
@@ -143,16 +145,29 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteLot = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this parking lot?')) return;
+    const confirmed = await confirmAction({
+      title: 'Delete Parking Lot',
+      message: 'Are you sure you want to delete this parking lot?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      intent: 'danger',
+    });
+    if (!confirmed) return;
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`http://localhost:8000/api/v1/admin/lots/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) fetchLots();
+      if (res.ok) {
+        showToast('Parking lot deleted successfully.', 'success');
+        fetchLots();
+      } else {
+        showToast('Failed to delete parking lot.', 'error');
+      }
     } catch (err) {
       console.error('Error deleting lot:', err);
+      showToast('Error deleting parking lot.', 'error');
     }
   };
 
@@ -299,7 +314,7 @@ const AdminDashboard = () => {
     const username = window.prompt('Guard username (optional):') || '';
     const password = window.prompt('Set temporary password (min 6 chars):');
     if (!password || password.length < 6) {
-      alert('Password must be at least 6 characters.');
+      showToast('Password must be at least 6 characters.', 'warning');
       return;
     }
 
@@ -316,27 +331,40 @@ const AdminDashboard = () => {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        alert(`Guard account created. Username: ${data.data.username}`);
+        showToast(`Guard account created. Username: ${data.data.username}`, 'success');
         fetchUsers();
       } else {
-        alert(data.message || 'Failed to create guard account');
+        showToast(data.message || 'Failed to create guard account', 'error');
       }
     } catch (err) {
       console.error('Error creating guard:', err);
-      alert('Failed to create guard account');
+      showToast('Failed to create guard account', 'error');
     }
   };
   const handleDeleteUser = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    const confirmed = await confirmAction({
+      title: 'Delete User',
+      message: 'Are you sure you want to delete this user?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      intent: 'danger',
+    });
+    if (!confirmed) return;
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`http://localhost:8000/api/v1/admin/users/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) fetchUsers();
+      if (res.ok) {
+        showToast('User deleted successfully.', 'success');
+        fetchUsers();
+      } else {
+        showToast('Failed to delete user.', 'error');
+      }
     } catch (err) {
       console.error('Error deleting user:', err);
+      showToast('Error deleting user.', 'error');
     }
   };
 
@@ -367,11 +395,11 @@ const AdminDashboard = () => {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Settings saved successfully!');
+        showToast('Settings saved successfully!', 'success');
       }
     } catch (err) {
       console.error('Error saving config:', err);
-      alert('Failed to save settings');
+      showToast('Failed to save settings', 'error');
     }
   };
 

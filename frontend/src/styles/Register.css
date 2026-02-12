@@ -1,5 +1,6 @@
 .register-page {
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,7 +10,10 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  padding: 20px;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 .register-card {
@@ -37,7 +41,7 @@
 }
 
 .register-header {
-  padding: 45px 20px 20px;
+  padding: 28px 20px 16px;
   text-align: center;
 }
 
@@ -97,7 +101,7 @@
 }
 
 .register-body {
-  padding: 30px 50px 45px;
+  padding: 22px 42px 28px;
 }
 
 .register-body h2 {
@@ -151,7 +155,7 @@
 
 .input-group input {
   width: 100%;
-  padding: 14px 15px 14px 62px;
+  padding: 14px 46px 14px 62px;
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
   font-size: 15px;
@@ -164,6 +168,29 @@
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+  z-index: 3;
+}
+
+.password-toggle:hover {
+  color: #2563eb;
+}
+
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .register-button {
@@ -229,7 +256,7 @@
   }
 
   .register-body {
-    padding: 25px 30px;
+    padding: 18px 24px 22px;
   }
 
   .register-header h1 {
@@ -253,11 +280,11 @@
   }
 
   .register-body {
-    padding: 20px 20px;
+    padding: 14px 16px 18px;
   }
 
   .register-header {
-    padding: 20px 15px 10px;
+    padding: 16px 15px 8px;
   }
 
   .register-body h2 {
