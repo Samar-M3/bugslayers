@@ -1,0 +1,34 @@
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: var(--bg-dark); /* Dark background */
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3); /* Darker shadow */
+  z-index: 1000;
+}
+
+.bottom-nav .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--text-muted); /* Muted text color */
+  text-decoration: none;
+  font-size: 0.8em;
+  transition: color 0.3s ease;
+}
+
+.bottom-nav .nav-item.active {
+  color: var(--accent-blue); /* Accent blue for active item */
+}
+
+.bottom-nav .nav-item:hover {
+  color: var(--accent-blue);
+}
+
+.bottom-nav .nav-item svg {
+  margin-bottom: 4px;
+}
