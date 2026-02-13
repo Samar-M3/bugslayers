@@ -32,7 +32,7 @@ const Login = () => {
 
     try {
       // API call to backend login endpoint (using upstream URL)
-      const response = await fetch('http://localhost:8000/api/v1/users/login', {
+      const response = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -160,3 +160,4 @@ const Login = () => {
 };
 
 export default Login;
+

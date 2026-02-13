@@ -46,7 +46,7 @@ function Profile() {
           throw new Error('No authentication token found.');
         }
 
-        const response = await axios.get('http://localhost:8000/api/v1/users/profile', {
+        const response = await axios.get('https://parkfasto-backend-2.onrender.com/api/v1/users/profile', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -94,7 +94,7 @@ function Profile() {
         const formData = new FormData();
         formData.append('photo', selectedFile);
 
-        const response = await axios.patch('http://localhost:8000/api/v1/users/profile', formData, {
+        const response = await axios.patch('https://parkfasto-backend-2.onrender.com/api/v1/users/profile', formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
@@ -121,7 +121,7 @@ function Profile() {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('token');
-      const response = await axios.patch('http://localhost:8000/api/v1/users/profile', editForm, {
+      const response = await axios.patch('https://parkfasto-backend-2.onrender.com/api/v1/users/profile', editForm, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -156,7 +156,7 @@ function Profile() {
         // Save QR code to backend database
         const token = localStorage.getItem('token');
         const response = await axios.post(
-          'http://localhost:8000/api/v1/qr/generate',
+          'https://parkfasto-backend-2.onrender.com/api/v1/qr/generate',
           { qrData: qrDataString },
           {
             headers: {
@@ -483,3 +483,4 @@ function Profile() {
 }
 
 export default Profile;
+

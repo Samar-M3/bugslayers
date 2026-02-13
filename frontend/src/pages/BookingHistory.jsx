@@ -13,7 +13,7 @@ export default function BookingHistory() {
         setLoading(true);
         setError(null);
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:8000/api/v1/parking/bookings', {
+        const res = await axios.get('https://parkfasto-backend-2.onrender.com/api/v1/parking/bookings', {
           headers: { Authorization: token ? `Bearer ${token}` : '' }
         });
         setBookings(res.data?.data || []);
@@ -77,3 +77,4 @@ export default function BookingHistory() {
     </div>
   );
 }
+

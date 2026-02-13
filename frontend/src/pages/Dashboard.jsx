@@ -325,7 +325,7 @@ const Dashboard = () => {
   const fetchData = async (lat, lon) => {
     try {
       // Fetch Parking Lots with location if available
-      let url = 'http://localhost:8000/api/v1/parking/lots';
+      let url = 'https://parkfasto-backend-2.onrender.com/api/v1/parking/lots';
       if (lat && lon) {
         url += `?lat=${lat}&lon=${lon}`;
       }
@@ -349,7 +349,7 @@ const Dashboard = () => {
       // Fetch Active Session (Requires Auth Token)
       const token = localStorage.getItem('token');
       if (token) {
-        const sessionRes = await fetch('http://localhost:8000/api/v1/parking/active-session', {
+        const sessionRes = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/parking/active-session', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const sessionData = await sessionRes.json();
@@ -769,4 +769,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
 

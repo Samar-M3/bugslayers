@@ -18,7 +18,7 @@ const GuardExitScanner = () => {
     useEffect(() => {
         const fetchLots = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/v1/parking/lots');
+                const response = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/parking/lots');
                 const data = await response.json();
                 if (data.success) {
                     setParkingLots(data.data);
@@ -114,7 +114,7 @@ const GuardExitScanner = () => {
         setError(null);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:8000/api/v1/parking/guard/exit', {
+            const response = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/parking/guard/exit', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -253,3 +253,4 @@ const GuardExitScanner = () => {
 };
 
 export default GuardExitScanner;
+

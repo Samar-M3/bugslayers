@@ -22,7 +22,7 @@ const ParkingLotDetail = () => {
 
   const fetchLot = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/parking/lots');
+      const response = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/parking/lots');
       const data = await response.json();
       if (data.success) {
         const foundLot = (data.data || []).find((item) => item._id === lotId);
@@ -95,7 +95,7 @@ const ParkingLotDetail = () => {
       setBookingLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await fetch('http://localhost:8000/api/v1/parking/book', {
+      const response = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/parking/book', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -227,3 +227,4 @@ const ParkingLotDetail = () => {
 };
 
 export default ParkingLotDetail;
+

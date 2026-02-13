@@ -19,7 +19,7 @@ const BottomNavbar = () => {
 
     try {
       setLoadingNotifications(true);
-      const res = await fetch('http://localhost:8000/api/v1/users/notifications', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/users/notifications', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -38,7 +38,7 @@ const BottomNavbar = () => {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      await fetch('http://localhost:8000/api/v1/users/notifications/read-all', {
+      await fetch('https://parkfasto-backend-2.onrender.com/api/v1/users/notifications/read-all', {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -141,3 +141,4 @@ const BottomNavbar = () => {
 };
 
 export default BottomNavbar;
+

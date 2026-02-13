@@ -57,7 +57,7 @@ function ResetPassword() {
 
     try {
       const response = await axios.post(
-        `http://localhost:8000/api/v1/users/reset-password/${token}`,
+        `https://parkfasto-backend-2.onrender.com/api/v1/users/reset-password/${token}`,
         {
           password: formData.password,
           passwordConfirm: formData.passwordConfirm
@@ -167,3 +167,4 @@ function ResetPassword() {
 }
 
 export default ResetPassword;
+

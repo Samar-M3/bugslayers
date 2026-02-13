@@ -18,7 +18,7 @@ function ForgotPassword() {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:8000/api/v1/users/forgot-password', { email });
+      const response = await axios.post('https://parkfasto-backend-2.onrender.com/api/v1/users/forgot-password', { email });
       
       if (response.data.success) {
         setSubmitted(true);
@@ -103,3 +103,4 @@ function ForgotPassword() {
 }
 
 export default ForgotPassword;
+

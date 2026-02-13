@@ -112,7 +112,7 @@ const AdminDashboard = () => {
   const fetchLots = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/lots', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/lots', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -126,7 +126,7 @@ const AdminDashboard = () => {
     e.preventDefault();
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/lots', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/lots', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -155,7 +155,7 @@ const AdminDashboard = () => {
     if (!confirmed) return;
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/admin/lots/${id}`, {
+      const res = await fetch(`https://parkfasto-backend-2.onrender.com/api/v1/admin/lots/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -175,7 +175,7 @@ const AdminDashboard = () => {
     e.preventDefault();
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/admin/lots/${editingLotId}`, {
+      const res = await fetch(`https://parkfasto-backend-2.onrender.com/api/v1/admin/lots/${editingLotId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -211,7 +211,7 @@ const AdminDashboard = () => {
     setScanResult(null);
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/ai-detect', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/ai-detect', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -245,10 +245,10 @@ const AdminDashboard = () => {
 
         // Fetch multiple data sources in parallel for better performance
         const [statsRes, trendsRes, activityRes, lotsRes] = await Promise.all([
-          fetch('http://localhost:8000/api/v1/admin/stats', { headers }),
-          fetch(`http://localhost:8000/api/v1/admin/revenue-trends?period=${revenuePeriod}`, { headers }),
-          fetch('http://localhost:8000/api/v1/admin/recent-activity', { headers }),
-          fetch('http://localhost:8000/api/v1/admin/lots', { headers })
+          fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/stats', { headers }),
+          fetch(`https://parkfasto-backend-2.onrender.com/api/v1/admin/revenue-trends?period=${revenuePeriod}`, { headers }),
+          fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/recent-activity', { headers }),
+          fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/lots', { headers })
         ]);
 
         if (!statsRes.ok || !trendsRes.ok || !activityRes.ok || !lotsRes.ok) {
@@ -291,7 +291,7 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/users', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/users', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -320,7 +320,7 @@ const AdminDashboard = () => {
 
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/guards', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/guards', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -352,7 +352,7 @@ const AdminDashboard = () => {
     if (!confirmed) return;
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/admin/users/${id}`, {
+      const res = await fetch(`https://parkfasto-backend-2.onrender.com/api/v1/admin/users/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -371,7 +371,7 @@ const AdminDashboard = () => {
   const fetchConfig = async () => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/config', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/config', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -385,7 +385,7 @@ const AdminDashboard = () => {
     e.preventDefault();
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/admin/config', {
+      const res = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/admin/config', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -870,3 +870,4 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+

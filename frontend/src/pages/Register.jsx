@@ -41,7 +41,7 @@ const Register = () => {
 
     try {
       // API call to backend registration endpoint (using upstream URL)
-      const response = await fetch('http://localhost:8000/api/v1/users/signup', {
+      const response = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/users/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -209,3 +209,4 @@ const Register = () => {
 };
 
 export default Register;
+

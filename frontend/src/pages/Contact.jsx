@@ -23,7 +23,7 @@ const Contact = () => {
     setStatus('Sending your message...');
     setStatusType('');
     try {
-      const response = await fetch('http://localhost:8000/api/v1/contact', {
+      const response = await fetch('https://parkfasto-backend-2.onrender.com/api/v1/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,3 +165,4 @@ const Contact = () => {
 };
 
 export default Contact;
+
